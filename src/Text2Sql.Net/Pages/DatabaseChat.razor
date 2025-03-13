@@ -1,0 +1,263 @@
+@page "/database-chat"
+@using Text2Sql.Net.Domain.Interface
+@using Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection
+@using Text2Sql.Net.Repositories.Text2Sql.ChatHistory
+@using Text2Sql.Net.Components
+@using AntDesign
+@inject IDatabaseConnectionConfigRepository ConnectionRepository
+@inject IChatService ChatService
+@inject ISqlExecutionService SqlExecutionService
+@inject MessageService MessageService
+
+<PageContainer Title="数据库聊天">
+    <Content>
+        <Card>
+            <div class="database-chat-container">
+                <div class="database-selection">
+                    <Select 
+                        TItem="DatabaseConnectionConfig"
+                        TItemValue="string"
+                        DataSource="@_connections"
+                        @bind-Value="@_selectedConnectionId"
+                        ValueName="@nameof(DatabaseConnectionConfig.Id)"
+                        LabelName="@nameof(DatabaseConnectionConfig.Name)"
+                        Style="width: 100%;"
+                        Placeholder="请选择数据库连接"
+                        OnSelectedItemChanged="OnDatabaseSelected">
+                    </Select>
+                </div>
+
+                <div class="chat-history-container">
+                    @if (_chatHistory != null && _chatHistory.Count > 0)
+                    {
+                        <List ItemLayout="ListItemLayout.Horizontal">
+                            @foreach (var message in _chatHistory)
+                            {
+                                <ListItem>
+                                    <Card Bordered="false" Class="@(message.IsUser ? "user-message" : "assistant-message")">
+                                        <div class="message-header">
+                                            <strong>@(message.IsUser ? "你" : "AI")</strong>
+                                            <span class="message-time">@message.CreateTime.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                                        </div>
+                                        <div class="message-content">
+                                            @message.Message
+                                        </div>
+                                        @if (!message.IsUser && !string.IsNullOrEmpty(message.SqlQuery))
+                                        {
+                                            <div class="sql-content">
+                                                <Divider Orientation="left">生成的SQL</Divider>
+                                                <pre>@message.SqlQuery</pre>
+                                                @if (message.ExecutionError != null)
+                                                {
+                                                    <Alert Type="@AlertType.Error" Message="执行错误" Description="@message.ExecutionError" ShowIcon="true" />
+                                                }
+                                            </div>
+                                        }
+                                    </Card>
+                                </ListItem>
+                            }
+                        </List>
+                    }
+                    else
+                    {
+                        <Empty Description="暂无聊天记录" />
+                    }
+                </div>
+
+                @if (_sqlResult != null)
+                {
+                    <div class="sql-result-container">
+                        <Divider Orientation="left">查询结果</Divider>
+                        <Table 
+                            TItem="Dictionary<string, object>"
+                            DataSource="@_sqlResult" 
+                            Loading="@_loading"
+                            Bordered>
+                            @foreach (var column in _sqlColumns)
+                            {
+                                <AntDesign.Column Field="@column" Title="@column" />
+                            }
+                        </Table>
+                    </div>
+                }
+
+                <div class="chat-input-container">
+                    <Space>
+                        <SpaceItem>
+                            <TextArea 
+                                @bind-Value="@_userMessage" 
+                                Placeholder="请输入数据库相关问题，例如：查询所有用户信息" 
+                                AutoSize="true"
+                                OnPressEnter="@SendMessage"
+                                Disabled="@(_selectedConnectionId == null || _loading)" />
+                        </SpaceItem>
+                        <SpaceItem>
+                            <Button 
+                                Type="@ButtonType.Primary" 
+                                OnClick="@SendMessage" 
+                                Loading="@_loading" 
+                                Disabled="@(_selectedConnectionId == null || string.IsNullOrWhiteSpace(_userMessage))">
+                                发送
+                            </Button>
+                        </SpaceItem>
+                    </Space>
+                </div>
+            </div>
+        </Card>
+    </Content>
+</PageContainer>
+
+<style>
+    .database-chat-container {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 200px);
+    }
+
+    .database-selection {
+        margin-bottom: 16px;
+    }
+
+    .chat-history-container {
+        flex-grow: 1;
+        overflow-y: auto;
+        margin-bottom: 16px;
+        max-height: calc(100vh - 350px);
+    }
+
+    .chat-input-container {
+        margin-top: 16px;
+    }
+
+    .user-message {
+        background-color: #e6f7ff;
+        margin-left: 20%;
+    }
+
+    .assistant-message {
+        background-color: #f6f6f6;
+        margin-right: 20%;
+    }
+
+    .message-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+    .message-time {
+        font-size: 12px;
+        color: #999;
+    }
+
+    .message-content {
+        white-space: pre-wrap;
+    }
+
+    .sql-content {
+        margin-top: 8px;
+        background-color: #f9f9f9;
+        padding: 8px;
+        border-radius: 4px;
+    }
+
+    .sql-content pre {
+        margin: 0;
+        white-space: pre-wrap;
+    }
+
+    .sql-result-container {
+        margin: 16px 0;
+    }
+</style>
+
+@code {
+    private List<DatabaseConnectionConfig> _connections = new List<DatabaseConnectionConfig>();
+    private string _selectedConnectionId;
+    private List<ChatMessage> _chatHistory = new List<ChatMessage>();
+    private string _userMessage;
+    private bool _loading = false;
+    private List<Dictionary<string, object>> _sqlResult;
+    private List<string> _sqlColumns = new List<string>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDatabaseConnections();
+    }
+
+    private async Task LoadDatabaseConnections()
+    {
+        _connections = await ConnectionRepository.GetAllAsync();
+    }
+
+    private async Task OnDatabaseSelected(DatabaseConnectionConfig connection)
+    {
+        if (connection != null)
+        {
+            _chatHistory = await ChatService.GetChatHistoryAsync(_selectedConnectionId);
+            _sqlResult = null;
+            _sqlColumns.Clear();
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_userMessage) || _selectedConnectionId == null)
+            return;
+
+        try
+        {
+            _loading = true;
+
+            // 添加用户消息到聊天历史
+            var userMessage = new ChatMessage
+            {
+                Id = Guid.NewGuid().ToString(),
+                ConnectionId = _selectedConnectionId,
+                Message = _userMessage,
+                IsUser = true,
+                CreateTime = DateTime.Now
+            };
+
+            await ChatService.SaveChatMessageAsync(userMessage);
+            _chatHistory.Add(userMessage);
+
+            // 生成并执行SQL
+            var response = await ChatService.GenerateAndExecuteSqlAsync(_selectedConnectionId, _userMessage);
+            
+            // 如果执行出错，尝试优化SQL
+            if (!string.IsNullOrEmpty(response.ExecutionError))
+            {
+                await MessageService.Info("SQL执行出错，尝试优化中...");
+                response = await ChatService.OptimizeSqlAndExecuteAsync(_selectedConnectionId, _userMessage, response.SqlQuery, response.ExecutionError);
+            }
+
+            // 添加AI响应到聊天历史
+            _chatHistory.Add(response);
+
+            // 显示查询结果（如果有）
+            if (response.QueryResult != null && response.QueryResult.Count > 0)
+            {
+                _sqlResult = response.QueryResult;
+                _sqlColumns = response.QueryResult.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
+            }
+            else
+            {
+                _sqlResult = null;
+                _sqlColumns.Clear();
+            }
+
+            // 清空输入框
+            _userMessage = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"处理请求时出错: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+} 

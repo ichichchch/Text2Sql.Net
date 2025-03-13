@@ -1,0 +1,14 @@
+﻿[
+  {
+    "path": "/database-chat",
+    "name": "对话",
+    "key": "chat",
+    "icon": "wechat"
+  },
+  {
+    "path": "/database-connection",
+    "name": "数据库连接",
+    "key": "database-connection",
+    "icon": "database"
+  }
+]

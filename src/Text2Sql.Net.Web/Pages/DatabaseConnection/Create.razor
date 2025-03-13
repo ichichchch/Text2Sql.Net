@@ -1,0 +1,168 @@
+@page "/database-connection/create"
+@page "/database-connection/create/{ConId}"
+@using AntDesign
+@using AntDesign.Form
+@using Microsoft.AspNetCore.Components.Forms
+@using Text2Sql.Net.Domain.Model
+@using Text2Sql.Net.Repositories.Text2Sql
+@using Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection
+@inject IDatabaseConnectionConfigRepository DatabaseConnectionConfigRepository
+@inject MessageService MessageService
+@inject NavigationManager NavigationManager
+
+<PageContainer Title="添加数据库连接">
+
+    <ChildContent>
+        <Card>
+            <Body>
+                <Form @ref="@_form" Model="@_model" LabelColSpan="6" WrapperColSpan="18" 
+                OnFinish="HandleSubmit" OnFinishFailed="HandleSubmitFailed">
+                    <FormItem Label="连接名称" Required>
+                        <Input @bind-Value="@_model.Name" Placeholder="请输入连接名称" />
+                    </FormItem>
+                    <FormItem Label="数据库类型" Required>
+                        <Select TItem="string" TItemValue="string" DefaultValue="@("选择数据库类型")"
+                        @bind-Value="@_model.DbType" 
+                        Placeholder="请选择数据库类型" 
+                        OnSelectedItemChanged="OnDatabaseTypeChanged">
+                            <SelectOptions>
+                                <SelectOption TItem="string" TItemValue="string" Value="@DatabaseTypeEnum.SQLServer" Label="SQL Server" />
+                                <SelectOption TItem="string" TItemValue="string" Value="@DatabaseTypeEnum.MySQL" Label="MySQL" />
+                                <SelectOption TItem="string" TItemValue="string" Value="@DatabaseTypeEnum.PostgreSQL" Label="PostgreSQL" />
+                                <SelectOption TItem="string" TItemValue="string" Value="@DatabaseTypeEnum.SQLite" Label="SQLite" />
+                            </SelectOptions>
+                        </Select>
+                    </FormItem>
+                    <FormItem Label="服务器地址">
+                        <Input @bind-Value="@_model.Server" Placeholder="请输入服务器地址" />
+                    </FormItem>
+                    <FormItem Label="端口号" Required>
+                        <AntDesign.InputNumber TValue="int?" @bind-Value="@_model.Port" Placeholder="请输入端口号" Min="1" Max="65535" />
+                    </FormItem>
+                    <FormItem Label="数据库名称">
+                        <Input @bind-Value="@_model.Database" Placeholder="请输入数据库名称" />
+                    </FormItem>
+                    <FormItem Label="用户名">
+                        <Input @bind-Value="@_model.Username" Placeholder="请输入用户名" />
+                    </FormItem>
+                    <FormItem Label="密码">
+                        <InputPassword @bind-Value="@_model.Password" Placeholder="请输入密码" />
+                    </FormItem>
+                    <FormItem Label="连接字符串">
+                        <Button Type="@ButtonType.Primary" OnClick="GenerateConnectionString" Style="margin-bottom:10px;">生成</Button>
+                        <TextArea @bind-Value="@_model.ConnectionString" Placeholder="连接字符串将自动生成，也可手动输入" 
+                        AutoSize MinRows="2" MaxRows="6" />
+                    </FormItem>
+                    <FormItem Label="描述">
+                        <TextArea @bind-Value="@_model.Description" Placeholder="请输入描述信息" 
+                        AutoSize MinRows="2" MaxRows="6" />
+                    </FormItem>
+                    <FormItem WrapperColOffset="6" WrapperColSpan="18">
+                        <Button Type="primary" HtmlType="submit" Loading="@_submitting">
+                            保存
+                        </Button>
+                        <Button Style="margin-left: 8px;" OnClick="@NavigateToList">
+                            返回
+                        </Button>
+                    </FormItem>
+                </Form>
+            </Body>
+        </Card>
+    </ChildContent>
+</PageContainer>
+
+@code {
+    private Form<DatabaseConnectionConfig> _form;
+    private DatabaseConnectionConfig _model = new DatabaseConnectionConfig();
+    private bool _submitting = false;
+    [Parameter]  public string ConId { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrEmpty(ConId))
+        {
+            _model = DatabaseConnectionConfigRepository.GetById(ConId);
+        }
+        else
+        {
+            // 设置默认端口
+            _model.Port = 0;
+        }
+    }
+
+    private void OnDatabaseTypeChanged(object value)
+    {
+        if (value != null && value is string selectedValue && !string.IsNullOrEmpty(selectedValue))
+        {
+            _model.DbType = selectedValue;
+
+            // 根据数据库类型设置默认端口
+            _model.Port = selectedValue switch
+            {
+                DatabaseTypeEnum.SQLServer => 1433,
+                DatabaseTypeEnum.MySQL => 3306,
+                DatabaseTypeEnum.PostgreSQL => 5432,
+                DatabaseTypeEnum.SQLite => 0,
+                _ => 0
+            };
+
+            // 自动生成连接字符串
+            GenerateConnectionString();
+        }
+    }
+
+    public void GenerateConnectionString()
+    {
+        _model.ConnectionString = _model.DbType switch
+        {
+            DatabaseTypeEnum.SQLServer => $"Data Source ={_model.Server},{_model.Port};Initial Catalog ={_model.Database};User ID={_model.Username};Password={_model.Password};Encrypt=True;TrustServerCertificate=True;",
+            DatabaseTypeEnum.MySQL => $"Server={_model.Server};Port={_model.Port};Database={_model.Database};Uid={_model.Username};Pwd={_model.Password};",
+            DatabaseTypeEnum.PostgreSQL => $"Host={_model.Server};Port={_model.Port};Database={_model.Database};Username={_model.Username};Password={_model.Password};",
+            DatabaseTypeEnum.SQLite => $"Data Source={_model.Database};",
+            _ => string.Empty
+        };
+    }
+
+    private async Task HandleSubmit()
+    {
+        _submitting = true;
+        try
+        {
+            GenerateConnectionString();
+            bool success=false;
+            if (string.IsNullOrEmpty(_model.Id))
+            {
+                _model.Id = Guid.NewGuid().ToString();
+            }
+            success = await DatabaseConnectionConfigRepository.InsertOrUpdateAsync(_model);
+              
+            if (success)
+            {
+                await MessageService.Success("保存成功");
+                NavigateToList();
+            }
+            else
+            {
+                await MessageService.Error("保存失败");
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"添加失败: {ex.Message}");
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private void HandleSubmitFailed(EditContext editContext)
+    {
+        MessageService.Error("表单验证失败，请检查输入");
+    }
+
+    private void NavigateToList()
+    {
+        NavigationManager.NavigateTo("/database-connection");
+    }
+} 

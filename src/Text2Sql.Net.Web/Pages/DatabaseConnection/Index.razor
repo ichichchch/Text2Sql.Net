@@ -1,0 +1,145 @@
+@page "/database-connection"
+@using SqlSugar
+@using Text2Sql.Net.Domain.Model
+@using Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection
+@using Text2Sql.Net.Repositories.Text2Sql
+@inject IDatabaseConnectionConfigRepository DatabaseConnectionConfigRepository
+@inject MessageService MessageService
+@inject NavigationManager NavigationManager
+
+<PageContainer Title="数据库连接管理">
+    <Content>
+        <div style="text-align: center;">
+            <Search Placeholder="输入回车"
+                    EnterButton="@("搜索")"
+                    Style="max-width: 522px; width: 100%;"
+                    OnSearch="Search" />
+        </div>
+    </Content>
+    <ChildContent >
+             <div class="cardList">
+            <AntList TItem="DatabaseConnectionConfig"
+                     DataSource="_dataList"
+                     ItemLayout="ListItemLayout.Horizontal"
+                     Grid="LayoutModel._listGridType">
+                <ListItem NoFlex>
+                    @if (string.IsNullOrEmpty(context.Id))
+                    {
+                        <Button Type="dashed" class="newButton" @onclick="NavigateToCreate">
+                                    <Icon Type="plus" Theme="outline" /> 创建应用
+                                </Button>
+                    }
+                    else
+                    {
+                <Card Hoverable Bordered Class="card" Actions="@(new[] {
+                            info(()=>NavigateToDetails(context.Id)),
+                            update(()=>  NavigateToEdit(context.Id)),
+                            delete(()=> DeleteConnection(context.Id)) ,
+
+                             })" Style="max-height:300px;">
+
+                                   <CardMeta>
+                                    <AvatarTemplate>
+                                    <Icon Type="database" Theme="outline" />
+                                    </AvatarTemplate>
+                                    <TitleTemplate>
+                                        <a>@context.Name</a>
+                                    </TitleTemplate>
+                                    <DescriptionTemplate>
+                                          <Paragraph class="item" Ellipsis>
+                                            <!--todo: Ellipsis not working-->
+                                            <Tooltip Title="@context.DbType" Placement="@Placement.TopLeft">
+                                            @context.DbType
+                                            </Tooltip>
+                                        </Paragraph></DescriptionTemplate>
+                                </CardMeta>
+
+
+                                </Card>
+                    }
+                </ListItem>
+            </AntList>
+        </div>
+    </ChildContent>
+</PageContainer>
+
+@code {
+    RenderFragment info(Action clickAction) =>@<a key="info" @onclick="@clickAction">查看</a>;
+    RenderFragment update(Action clickAction) =>@<a key="use" @onclick="@clickAction">编辑</a>;
+    RenderFragment delete(Action clickAction) => @<a key="delete" @onclick="@clickAction">删除</a> ;
+
+
+    private List<DatabaseConnectionConfig> _dataList = new List<DatabaseConnectionConfig>();
+    private bool _loading = false;
+    private int _total = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await InitData("");
+    }
+
+    private async Task InitData(string searchKey)
+    {
+        _loading = true;
+        try
+        {
+            var list = new List<DatabaseConnectionConfig> { new DatabaseConnectionConfig() { CreateTime = DateTime.MaxValue } };
+            var exp = Expressionable.Create<DatabaseConnectionConfig>();
+            exp.AndIF(!string.IsNullOrEmpty(searchKey), p => p.Name.Contains(searchKey));
+            var data = await DatabaseConnectionConfigRepository.GetListAsync(exp.ToExpression());
+            list.AddRange(data);
+            _dataList = list.OrderByDescending(x => x.CreateTime).ToList();
+            _total = _dataList.Count;
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"加载数据失败: {ex.Message}", 2);
+        }
+        finally
+        {
+            _loading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task Search(string searchKey)
+    {
+        await InitData(searchKey);
+    }
+
+    private void NavigateToCreate()
+    {
+        NavigationManager.NavigateTo($"/database-connection/create");
+    }
+
+    private void NavigateToDetails(string id)
+    {
+        NavigationManager.NavigateTo($"/database-connection/details/{id}");
+    }
+
+    private void NavigateToEdit(string id)
+    {
+        NavigationManager.NavigateTo($"/database-connection/create/{id}");
+    }
+
+    private async Task DeleteConnection(string id)
+    {
+        try
+        {
+            var success = await DatabaseConnectionConfigRepository.DeleteAsync(id);
+            if (success)
+            {
+                await MessageService.Success("删除成功");
+                await InitData("");
+            }
+            else
+            {
+                await MessageService.Error("删除失败");
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"删除失败: {ex.Message}");
+        }
+    }
+} 

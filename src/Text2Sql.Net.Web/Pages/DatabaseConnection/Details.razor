@@ -1,0 +1,128 @@
+@page "/database-connection/details/{Id}"
+@using Text2Sql.Net.Domain.Model
+@using Text2Sql.Net.Repositories.Text2Sql
+@using Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection
+@using Text2Sql.Net.Domain.Interface
+@inject IDatabaseConnectionConfigRepository DatabaseConnectionConfigRepository
+@inject ISchemaTrainingService SchemaTrainingService
+@inject MessageService MessageService
+@inject NavigationManager NavigationManager
+
+<PageContainer Title="数据库连接详情">
+    <ChildContent>
+        <Card Loading="@_loading">
+            <Descriptions Title="连接详情" Layout="@DescriptionsLayout.Horizontal" Bordered>
+                <DescriptionsItem Title="连接名称" Span="3">
+                    @_model.Name
+                </DescriptionsItem>
+                <DescriptionsItem Title="数据库类型" Span="3">
+                    @_model.DbType
+                </DescriptionsItem>
+                <DescriptionsItem Title="连接字符串" Span="3">
+                    @_model.ConnectionString
+                </DescriptionsItem>
+                <DescriptionsItem Title="描述" Span="3">
+                    @(!string.IsNullOrEmpty(_model.Description) ? _model.Description : "-")
+                </DescriptionsItem>
+                <DescriptionsItem Title="创建时间" Span="3">
+                    @_model.CreateTime.ToString("yyyy-MM-dd HH:mm:ss")
+                </DescriptionsItem>
+                @if (_model.UpdateTime.HasValue)
+                {
+                    <DescriptionsItem Title="更新时间" Span="3">
+                        @_model.UpdateTime?.ToString("yyyy-MM-dd HH:mm:ss")
+                    </DescriptionsItem>
+                }
+            </Descriptions>
+            <div style="margin-top: 16px;">
+                <Button Type="@ButtonType.Primary" Style="margin-left: 8px;" Loading="@_trainingLoading" OnClick="@TrainDatabaseSchema">
+                    训练Schema
+                </Button>
+                <Button Type="@ButtonType.Primary" OnClick="@(() => NavigateToEdit(Id))">
+                    编辑
+                </Button>
+                <Button Style="margin-left: 8px;" OnClick="@NavigateToList">
+                    返回
+                </Button>
+            </div>
+        </Card>
+    </ChildContent>
+</PageContainer>
+
+@code {
+    [Parameter]
+    public string Id { get; set; }
+
+    private DatabaseConnectionConfig _model = new DatabaseConnectionConfig();
+    private bool _loading = false;
+    private bool _trainingLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try
+        {
+            var data = await DatabaseConnectionConfigRepository.GetByIdAsync(Id);
+            if (data != null)
+            {
+                _model = data;
+            }
+            else
+            {
+                await MessageService.Error("找不到指定的数据库连接配置");
+                NavigateToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"加载数据失败: {ex.Message}");
+            NavigateToList();
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task TrainDatabaseSchema()
+    {
+        _trainingLoading = true;
+        try
+        {
+            var result = await SchemaTrainingService.TrainDatabaseSchemaAsync(Id);
+            if (result)
+            {
+                await MessageService.Success("数据库Schema训练成功");
+            }
+            else
+            {
+                await MessageService.Error("数据库Schema训练失败");
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"训练失败: {ex.Message}");
+        }
+        finally
+        {
+            _trainingLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void NavigateToEdit(string id)
+    {
+        NavigationManager.NavigateTo($"/database-connection/create/{id}");
+    }
+
+    private void NavigateToList()
+    {
+        NavigationManager.NavigateTo("/database-connection");
+    }
+} 

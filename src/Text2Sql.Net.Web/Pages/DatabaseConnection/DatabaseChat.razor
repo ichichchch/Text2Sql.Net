@@ -1,0 +1,605 @@
+@page "/database-chat"
+@using Text2Sql.Net.Domain.Interface
+@using Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection
+@using Text2Sql.Net.Repositories.Text2Sql.ChatHistory
+@using AntDesign
+@inject IDatabaseConnectionConfigRepository DatabaseConnectionRepository
+@inject IChatService ChatService
+@inject ISqlExecutionService SqlExecutionService
+@inject MessageService MessageService
+@inject IJSRuntime JSRuntime
+
+<PageContainer Title="Text2Sql">
+    <Content>
+        <Card>
+            <div class="database-chat-container">
+                <div class="database-selection">
+                    <Select TItem="DatabaseConnectionConfig"
+                            TItemValue="string"
+                            DataSource="@_connections"
+                            @bind-Value="@_selectedConnectionId"
+                            ValueName="@nameof(DatabaseConnectionConfig.Id)"
+                            LabelName="@nameof(DatabaseConnectionConfig.Name)"
+                            Style="width: 100%;"
+                            Placeholder="请选择数据库连接"
+                            OnSelectedItemChanged="OnDatabaseSelected"
+                            Disabled="@_loading">
+                    </Select>
+                </div>
+
+                <div class="chat-history-container @(_isChatCollapsed ? "collapsed" : "")" @ref="_chatContainerRef">
+                    @if (_loadingHistory)
+                    {
+                        <div class="loading-container">
+                            <Spin Tip="正在加载聊天历史..." />
+                        </div>
+                    }
+                    else if (_chatHistory != null && _chatHistory.Count > 0)
+                    {
+                        <div class="toggle-container">
+                            <Button Type="@ButtonType.Link" 
+                                    OnClick="@(() => _isChatCollapsed = !_isChatCollapsed)"
+                                    Class="toggle-button">
+                                <Icon Type="@(_isChatCollapsed ? "down" : "up")" />
+                                @(_isChatCollapsed ? "展开聊天记录" : "折叠聊天记录")
+                            </Button>
+                        </div>
+                        
+                        @if (!_isChatCollapsed)
+                        {
+                            <AntList TItem="ChatMessage"
+                                     DataSource="_chatHistory"
+                                     ItemLayout="ListItemLayout.Horizontal">
+
+                                <ListItem>
+                                    <Card Bordered="false" Class="@(context.IsUser ? "user-message" : "assistant-message")">
+                                        <div class="message-header">
+                                            <strong>@(context.IsUser ? "你" : "AI")</strong>
+                                            <span class="message-time">@context.CreateTime.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                                        </div>
+                                        <div class="message-content">
+                                            @context.Message
+                                        </div>
+                                        @if (!context.IsUser && !string.IsNullOrEmpty(context.SqlQuery))
+                                        {
+                                            <div class="sql-content">
+                                                <Divider Orientation="left">生成的SQL</Divider>
+                                                <pre>@context.SqlQuery</pre>
+                                                <div class="sql-actions">
+                                                    <Button Type="@ButtonType.Link" OnClick="async () => await CopySqlToClipboard(context.SqlQuery)">
+                                                        <Icon Type="copy" /> 复制
+                                                    </Button>
+                                                    <Button Type="@ButtonType.Link" OnClick="async () => await ExecuteSqlAsync(context.SqlQuery)">
+                                                        <Icon Type="play-circle" /> 执行
+                                                    </Button>
+                                                </div>
+                                                @if (!string.IsNullOrEmpty(context.ExecutionError))
+                                                {
+                                                    <Alert Type="@AlertType.Error" Message="执行错误" Description="@context.ExecutionError" ShowIcon="true" />
+                                                }
+                                            </div>
+                                        }
+                                    </Card>
+                                </ListItem>
+
+                            </AntList>
+                        }
+                    }
+                    else
+                    {
+                        <Empty Description=@("暂无聊天记录") />
+                    }
+                </div>
+
+                @if (_sqlResult != null)
+                {
+                    <div class="sql-result-container @(_isResultCollapsed ? "collapsed" : "")">
+                        <div class="toggle-container">
+                            <Button Type="@ButtonType.Link" 
+                                    OnClick="@(() => _isResultCollapsed = !_isResultCollapsed)"
+                                    Class="toggle-button">
+                                <Icon Type="@(_isResultCollapsed ? "down" : "up")" />
+                                @(_isResultCollapsed ? "展开查询结果" : "折叠查询结果")
+                            </Button>
+                            @if (!_isResultCollapsed)
+                            {
+                                <Button Type="@ButtonType.Link"
+                                        OnClick="@(() => _sqlResult = null)"
+                                        Icon="close-circle">
+                                    关闭结果
+                                </Button>
+                            }
+                        </div>
+
+                        @if (!_isResultCollapsed)
+                        {
+                            <Divider Orientation="left">
+                                <Space>
+                                    <SpaceItem>查询结果</SpaceItem>
+                                    <SpaceItem>
+                                        <Tag Color="blue">@(_sqlResult.Count) 条记录</Tag>
+                                    </SpaceItem>
+                                </Space>
+                            </Divider>
+
+                            <Table TItem="Dictionary<string, object>"
+                                   DataSource="@_sqlResult"
+                                   Loading="@_loading"
+                                   Bordered
+                                   Size="@TableSize.Small"
+                                   ScrollX="1000"
+                                   ScrollY="300">
+                                @foreach (var column in _sqlColumns)
+                                {
+                                    <AntDesign.Column TData="Dictionary<string, object>" Title="@column">
+                                        @context[column]
+                                    </AntDesign.Column>
+                                }
+                            </Table>
+                        }
+                    </div>
+                }
+
+                <div class="chat-input-container">
+                    <TextArea @bind-Value="@_userMessage"
+                              Placeholder="请输入数据库相关问题，例如：查询所有用户信息"
+                              AutoSize="true"
+                              OnPressEnter="@SendMessage"
+                              Disabled="@(_selectedConnectionId == null || _loading)"
+                              Style="width: 100%;" />
+
+                    <div class="input-actions">
+                        <Button Type="@ButtonType.Primary"
+                                OnClick="@SendMessage"
+                                Loading="@_loading">
+                            发送
+                        </Button>
+                    </div>
+
+                    @if (_loading)
+                    {
+                        <div class="loading-hint">
+                            <Spin Size="small" /> <span>正在处理您的请求，可能需要几秒钟时间...</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </Card>
+    </Content>
+</PageContainer>
+
+<style>
+    .database-chat-container {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 200px);
+        gap: 16px;
+        position: relative;
+    }
+
+    .database-selection {
+        margin-bottom: 16px;
+    }
+
+    .chat-history-container {
+        flex-grow: 1;
+        overflow-y: auto;
+        margin-bottom: 16px;
+        max-height: calc(60vh - 150px);
+        padding-right: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .chat-history-container.collapsed {
+        max-height: 40px;
+        overflow: hidden;
+    }
+
+    .loading-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+    }
+
+    .chat-input-container {
+        position: sticky;
+        bottom: 0;
+        width: 100%;
+        background-color: white;
+        padding-top: 8px;
+        border-top: 1px solid #f0f0f0;
+        margin-top: auto;
+    }
+
+    .input-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 8px;
+    }
+
+    .user-message {
+        width:100%;
+        background-color: #e6f7ff;
+        margin-left: 20%;
+        margin-right: 0;
+        border-radius: 8px;
+        animation: fadein 0.3s ease-in;
+    }
+
+    .assistant-message {
+        background-color: #f6f6f6;
+        margin-right: 20%;
+        margin-left: 0;
+        border-radius: 8px;
+        animation: fadein 0.3s ease-in;
+    }
+
+    @@keyframes fadein {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .message-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+    .message-time {
+        font-size: 12px;
+        color: #999;
+    }
+
+    .message-content {
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .sql-content {
+        margin-top: 12px;
+        background-color: #f9f9f9;
+        padding: 12px;
+        border-radius: 4px;
+        border-left: 3px solid #1890ff;
+    }
+
+        .sql-content pre {
+            margin: 0;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow: auto;
+            background-color: #f0f0f0;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+    .sql-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 8px;
+    }
+
+    .sql-result-container {
+        width: 100%;
+        border: 1px solid #f0f0f0;
+        border-radius: 4px;
+        padding: 12px;
+        background-color: #fafafa;
+        max-height: calc(50vh);
+        overflow-y: auto;
+        margin-bottom: 16px;
+        transition: all 0.3s ease;
+    }
+
+    .sql-result-container.collapsed {
+        max-height: 40px;
+        overflow: hidden;
+    }
+
+    .toggle-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .toggle-button {
+        display: flex;
+        align-items: center;
+    }
+
+        .toggle-button .anticon {
+            margin-right: 4px;
+        }
+
+    .result-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 8px;
+    }
+
+    .loading-hint {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #999;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+</style>
+
+@code {
+    private List<DatabaseConnectionConfig> _connections = new List<DatabaseConnectionConfig>();
+    private string _selectedConnectionId;
+    private List<ChatMessage> _chatHistory = new List<ChatMessage>();
+    private string _userMessage;
+    private bool _loading = false;
+    private bool _loadingHistory = false;
+    private List<Dictionary<string, object>> _sqlResult;
+    private List<string> _sqlColumns = new List<string>();
+    private ElementReference _chatContainerRef;
+    private bool _isChatCollapsed = false;
+    private bool _isResultCollapsed = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 确保初始化时状态正确
+        _loading = false;
+        _loadingHistory = false;
+        _isChatCollapsed = false;
+        _isResultCollapsed = false;
+
+        try
+        {
+            await LoadDatabaseConnections();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"加载数据库连接失败: {ex.Message}");
+        }
+
+        await base.OnInitializedAsync();
+    }
+
+    private async Task LoadDatabaseConnections()
+    {
+        try
+        {
+            _connections = await DatabaseConnectionRepository.GetListAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"获取数据库连接列表失败: {ex.Message}");
+            await MessageService.Error("获取数据库连接列表失败，请刷新页面重试");
+            _connections = new List<DatabaseConnectionConfig>();
+        }
+    }
+
+    private async Task OnDatabaseSelected(DatabaseConnectionConfig connection)
+    {
+        if (connection == null) return;
+
+        try
+        {
+            // 设置加载状态
+            _loadingHistory = true;
+            _sqlResult = null;
+            _sqlColumns.Clear();
+            _isChatCollapsed = false;
+            _isResultCollapsed = false;
+
+            try
+            {
+                _chatHistory = await ChatService.GetChatHistoryAsync(_selectedConnectionId);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"获取聊天历史失败: {ex.Message}");
+                await MessageService.Error($"加载聊天历史失败: {ex.Message}");
+                _chatHistory = new List<ChatMessage>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"选择数据库连接失败: {ex.Message}");
+            await MessageService.Error($"选择数据库连接失败: {ex.Message}");
+        }
+        finally
+        {
+            _loadingHistory = false;
+
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_userMessage) || _selectedConnectionId == null)
+            return;
+
+        // 避免重复发送
+        if (_loading) return;
+
+        string currentMessage = _userMessage;
+        _userMessage = string.Empty;
+
+        try
+        {
+            _loading = true;
+            // 确保聊天窗口可见
+            _isChatCollapsed = false;
+
+            // 添加用户消息到聊天历史
+            var userMessage = new ChatMessage
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ConnectionId = _selectedConnectionId,
+                    Message = currentMessage,
+                    IsUser = true,
+                    CreateTime = DateTime.Now
+                };
+
+            try
+            {
+                await ChatService.SaveChatMessageAsync(userMessage);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"保存用户消息失败: {ex.Message}");
+                // 继续执行，即使保存失败
+            }
+
+            _chatHistory.Add(userMessage);
+
+
+            // 生成并执行SQL
+            var response = await ChatService.GenerateAndExecuteSqlAsync(_selectedConnectionId, currentMessage);
+
+            // 如果执行出错，尝试优化SQL
+            if (!string.IsNullOrEmpty(response.ExecutionError))
+            {
+                try
+                {
+                    await MessageService.Info("SQL执行出错，尝试优化中...");
+
+
+                    response = await ChatService.OptimizeSqlAndExecuteAsync(_selectedConnectionId, currentMessage, response.SqlQuery, response.ExecutionError);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"优化SQL失败: {ex.Message}");
+                    // 优化失败，仍然使用原来的响应
+                }
+            }
+
+            // 添加AI响应到聊天历史
+            _chatHistory.Add(response);
+
+            // 显示查询结果（如果有）
+            if (response.QueryResult != null && response.QueryResult.Count > 0)
+            {
+                _sqlResult = response.QueryResult;
+                _sqlColumns = response.QueryResult.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
+                // 确保查询结果可见
+                _isResultCollapsed = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"处理消息失败: {ex.Message}");
+            await MessageService.Error($"处理请求时出错: {ex.Message}");
+
+            // 如果是因为用户消息已经添加但处理失败，添加一个系统错误消息
+            if (_chatHistory.Any(m => m.IsUser && m.Message == currentMessage && !_chatHistory.Any(r => !r.IsUser && r.CreateTime > m.CreateTime)))
+            {
+                _chatHistory.Add(new ChatMessage
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        ConnectionId = _selectedConnectionId,
+                        Message = $"处理您的请求时出现错误：{ex.Message}",
+                        IsUser = false,
+                        CreateTime = DateTime.Now
+                    });
+            }
+        }
+        finally
+        {
+            _loading = false;
+
+        }
+    }
+
+    private async Task ExecuteSqlAsync(string sql)
+    {
+        if (string.IsNullOrWhiteSpace(sql) || _selectedConnectionId == null)
+            return;
+
+        // 避免重复执行
+        if (_loading) return;
+
+        try
+        {
+            _loading = true;
+
+
+            var (result, errorMessage) = await SqlExecutionService.ExecuteQueryAsync(_selectedConnectionId, sql);
+
+            if (!string.IsNullOrEmpty(errorMessage))
+            {
+                await MessageService.Error($"SQL执行错误: {errorMessage}");
+            }
+            else if (result != null)
+            {
+                _sqlResult = result;
+                _sqlColumns = result.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
+                _isResultCollapsed = false; // 确保结果可见
+                await MessageService.Success($"SQL执行成功，返回 {result.Count} 条记录");
+            }
+            else
+            {
+                await MessageService.Info("SQL执行成功，但未返回数据");
+                _sqlResult = null;
+                _sqlColumns.Clear();
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"执行SQL时出错: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+
+        }
+    }
+
+    public void ResetLoadingStates()
+    {
+        _loading = false;
+        _loadingHistory = false;
+        StateHasChanged();
+    }
+
+    private async Task CopySqlToClipboard(string sql)
+    {
+        if (string.IsNullOrEmpty(sql)) return;
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", sql);
+            await MessageService.Success("SQL已复制到剪贴板");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"复制SQL失败: {ex.Message}");
+            await MessageService.Error("复制失败，请手动选择并复制");
+        }
+    }
+}

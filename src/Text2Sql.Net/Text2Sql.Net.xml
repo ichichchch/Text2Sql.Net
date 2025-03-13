@@ -1,0 +1,1059 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Text2Sql.Net</name>
+    </assembly>
+    <members>
+        <member name="P:Text2Sql.Net.Options.Text2SqlConnectionOption.DbType">
+            <summary>
+            sqlite连接字符串
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Options.Text2SqlConnectionOption.DBConnection">
+            <summary>
+            业务数据链接字符串
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Options.Text2SqlConnectionOption.VectorConnection">
+            <summary>
+            向量数据连接字符串
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Options.Text2SqlConnectionOption.VectorSize">
+            <summary>
+            向量数据维度，PG需要设置
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Options.TextChunkerOption.LinesToken">
+            <summary>
+            行切片token
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Options.TextChunkerOption.ParagraphsToken">
+            <summary>
+            段落切片token
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Interface.IChatService">
+            <summary>
+            聊天服务接口
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IChatService.GetChatHistoryAsync(System.String)">
+            <summary>
+            获取指定数据库连接的聊天历史
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <returns>聊天历史列表</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IChatService.SaveChatMessageAsync(Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage)">
+            <summary>
+            保存聊天消息
+            </summary>
+            <param name="message">聊天消息</param>
+            <returns>保存结果</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IChatService.GenerateAndExecuteSqlAsync(System.String,System.String)">
+            <summary>
+            生成并执行SQL
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userMessage">用户消息</param>
+            <returns>AI响应（包含生成的SQL和执行结果）</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IChatService.OptimizeSqlAndExecuteAsync(System.String,System.String,System.String,System.String)">
+            <summary>
+            优化SQL并执行
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userMessage">用户消息</param>
+            <param name="originalSql">原始SQL</param>
+            <param name="errorMessage">错误信息</param>
+            <returns>AI响应（包含优化后的SQL和执行结果）</returns>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Interface.ISchemaTrainingService">
+            <summary>
+            数据库Schema训练服务接口
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.ISchemaTrainingService.TrainDatabaseSchemaAsync(System.String)">
+            <summary>
+            训练数据库Schema
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <returns>训练结果</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.ISchemaTrainingService.GetDatabaseSchemaAsync(System.String)">
+            <summary>
+            获取数据库Schema
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <returns>Schema信息</returns>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Interface.ISqlExecutionService">
+            <summary>
+            SQL执行服务接口
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.ISqlExecutionService.ExecuteQueryAsync(System.String,System.String)">
+            <summary>
+            执行SQL查询
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="sqlQuery">SQL查询语句</param>
+            <returns>查询结果和可能的错误信息</returns>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Model.DatabaseTypeEnum">
+            <summary>
+            数据库类型枚举
+            </summary>
+        </member>
+        <member name="F:Text2Sql.Net.Domain.Model.DatabaseTypeEnum.SQLServer">
+            <summary>
+            SQL Server 数据库
+            </summary>
+        </member>
+        <member name="F:Text2Sql.Net.Domain.Model.DatabaseTypeEnum.MySQL">
+            <summary>
+            MySQL 数据库
+            </summary>
+        </member>
+        <member name="F:Text2Sql.Net.Domain.Model.DatabaseTypeEnum.PostgreSQL">
+            <summary>
+            PostgreSQL 数据库
+            </summary>
+        </member>
+        <member name="F:Text2Sql.Net.Domain.Model.DatabaseTypeEnum.SQLite">
+            <summary>
+            SQLite 数据库
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.ChatService">
+            <summary>
+            聊天服务实现
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.#ctor(Text2Sql.Net.Repositories.Text2Sql.ChatHistory.IChatMessageRepository,Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.IDatabaseSchemaRepository,Text2Sql.Net.Domain.Interface.ISqlExecutionService,Text2Sql.Net.Domain.Interface.ISemanticService,Microsoft.SemanticKernel.Kernel,Microsoft.Extensions.Logging.ILogger{Text2Sql.Net.Domain.Service.ChatService})">
+            <summary>
+            构造函数
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.GetChatHistoryAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.SaveChatMessageAsync(Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.GenerateAndExecuteSqlAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.OptimizeSqlAndExecuteAsync(System.String,System.String,System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.GetRelevantSchemaInfoAsync(System.String,System.String)">
+            <summary>
+            获取与用户问题相关的数据库Schema信息
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userMessage">用户问题</param>
+            <returns>相关Schema信息</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.GenerateSqlQueryAsync(System.String,System.String)">
+            <summary>
+            根据用户问题和Schema信息生成SQL查询
+            </summary>
+            <param name="userMessage">用户问题</param>
+            <param name="schemaInfo">Schema信息</param>
+            <returns>生成的SQL查询</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.OptimizeSqlQueryAsync(System.String,System.String,System.String,System.String)">
+            <summary>
+            优化SQL查询
+            </summary>
+            <param name="userMessage">用户问题</param>
+            <param name="originalSql">原始SQL</param>
+            <param name="errorMessage">错误信息</param>
+            <param name="schemaInfo">Schema信息</param>
+            <returns>优化后的SQL</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.CleanSqlResult(System.String)">
+            <summary>
+            清理SQL结果，移除可能的标记
+            </summary>
+            <param name="sql">原始SQL</param>
+            <returns>清理后的SQL</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.CreateErrorResponse(System.String,System.String)">
+            <summary>
+            创建错误响应消息
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="errorMessage">错误信息</param>
+            <returns>错误响应消息</returns>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.SchemaTrainingService">
+            <summary>
+            Schema训练服务实现
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.#ctor(Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.IDatabaseConnectionConfigRepository,Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.IDatabaseSchemaRepository,Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.ISchemaEmbeddingRepository,Microsoft.SemanticKernel.Kernel,Microsoft.SemanticKernel.Memory.IMemoryStore,Microsoft.Extensions.Logging.ILogger{Text2Sql.Net.Domain.Service.SchemaTrainingService},Text2Sql.Net.Domain.Interface.ISemanticService)">
+            <summary>
+            构造函数
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.TrainDatabaseSchemaAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.GetDatabaseSchemaAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.GetSqliteSchemaAsync(SqlSugar.SqlSugarClient,Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig)">
+            <summary>
+            获取SQLite数据库的架构信息
+            </summary>
+            <param name="db">数据库连接</param>
+            <param name="connectionConfig">连接配置</param>
+            <returns>schema JSON</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.SqliteEscapeIdentifier(System.String)">
+            <summary>
+            转义SQLite标识符
+            </summary>
+            <param name="identifier">需要转义的标识符</param>
+            <returns>转义后的标识符</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.CreateCommentTablesIfNotExistsAsync(SqlSugar.SqlSugarClient)">
+            <summary>
+            为SQLite创建注释表(如果不存在)
+            </summary>
+            <param name="db">数据库连接</param>
+            <returns>成功与否</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.GetDbType(System.String)">
+            <summary>
+            获取SqlSugar数据库类型
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SemanticService.GetTextMemory">
+            <summary>
+            获取SemanticTextMemory
+            </summary>
+            <returns></returns>
+            <exception cref="T:System.InvalidOperationException"></exception>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.SqlExecutionService">
+            <summary>
+            SQL执行服务实现
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SqlExecutionService.#ctor(Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.IDatabaseConnectionConfigRepository,Microsoft.Extensions.Logging.ILogger{Text2Sql.Net.Domain.Service.SqlExecutionService})">
+            <summary>
+            构造函数
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SqlExecutionService.ExecuteQueryAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SqlExecutionService.GetDbType(System.String)">
+            <summary>
+            获取SqlSugar数据库类型
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Model.PageList`1.PageIndex">
+            <summary>
+            当前页，从1开始
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Model.PageList`1.PageSize">
+            <summary>
+            每页数量
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Model.PageList`1.TotalCount">
+            <summary>
+            总数
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.GetList">
+            <summary>
+            获取所有list
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.GetListAsync">
+            <summary>
+            获取所有list-异步
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.GetList(System.Linq.Expressions.Expression{System.Func{`0,System.Boolean}})">
+            <summary>
+            根据lambda查询
+            </summary>
+            <param name="whereExpression"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.GetListAsync(System.Linq.Expressions.Expression{System.Func{`0,System.Boolean}})">
+            <summary>
+            根据lambda查询-异步
+            </summary>
+            <param name="whereExpression"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.Count(System.Linq.Expressions.Expression{System.Func{`0,System.Boolean}})">
+            <summary>
+            根据lambda表达式获取数量
+            </summary>
+            <param name="whereExpression"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.CountAsync(System.Linq.Expressions.Expression{System.Func{`0,System.Boolean}})">
+            <summary>
+            根据lambda表达式获取数量-异步
+            </summary>
+            <param name="whereExpression"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.GetPageList(System.Linq.Expressions.Expression{System.Func{`0,System.Boolean}},SqlSugar.PageModel)">
+            <summary>
+            获取分页
+            </summary>
+            <param name="whereExpression"></param>
+            <param name="page"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.GetPageListAsync(System.Linq.Expressions.Expression{System.Func{`0,System.Boolean}},SqlSugar.PageModel)">
+            <summary>
+            获取分页-异步
+            </summary>
+            <param name="whereExpression"></param>
+            <param name="page"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.GetById(System.Object)">
+            <summary>
+            根据id获取实体
+            </summary>
+            <param name="id"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.GetByIdAsync(System.Object)">
+            <summary>
+            根据id获取实体-异步
+            </summary>
+            <param name="id"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.GetSingle(System.Linq.Expressions.Expression{System.Func{`0,System.Boolean}})">
+            <summary>
+            根据lambda获取单个对象 （注意，需要确保唯一，如果获取到2个会报错，这种场景需要使用GetFirst）
+            </summary>
+            <param name="whereExpression"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.GetSingleAsync(System.Linq.Expressions.Expression{System.Func{`0,System.Boolean}})">
+            <summary>
+            根据lambda获取单个对象-异步  （注意，需要确保唯一，如果获取到2个会报错，这种场景需要使用GetFirst）
+            </summary>
+            <param name="whereExpression"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.GetFirst(System.Linq.Expressions.Expression{System.Func{`0,System.Boolean}})">
+            <summary>
+            根据lambda获取单个对象
+            </summary>
+            <param name="whereExpression"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.GetFirstAsync(System.Linq.Expressions.Expression{System.Func{`0,System.Boolean}})">
+            <summary>
+            根据lambda获取单个对象 --异步
+            </summary>
+            <param name="whereExpression"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.Insert(`0)">
+            <summary>
+            实体插入
+            </summary>
+            <param name="obj"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.InsertAsync(`0)">
+            <summary>
+            实体插入-异步
+            </summary>
+            <param name="obj"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.InsertRange(System.Collections.Generic.List{`0})">
+            <summary>
+            批量插入
+            </summary>
+            <param name="objs"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.InsertRangeAsync(System.Collections.Generic.List{`0})">
+            <summary>
+            批量插入-异步
+            </summary>
+            <param name="objs"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.InsertReturnIdentity(`0)">
+            <summary>
+            插入返回自增列
+            </summary>
+            <param name="obj"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.InsertReturnIdentityAsync(`0)">
+            <summary>
+            插入返回自增列-异步
+            </summary>
+            <param name="obj"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.InsertReturnBigIdentity(`0)">
+            <summary>
+            插入返回longid
+            </summary>
+            <param name="obj"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.InsertReturnBigIdentityAsync(`0)">
+            <summary>
+            插入返回longid-异步
+            </summary>
+            <param name="obj"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.DeleteByIds(System.Object[])">
+            <summary>
+            批量删除
+            </summary>
+            <param name="ids"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.DeleteByIdsAsync(System.Object[])">
+            <summary>
+            批量删除-异步
+            </summary>
+            <param name="ids"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.Delete(System.Object)">
+            <summary>
+            根据主键删除
+            </summary>
+            <param name="id"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.DeleteAsync(System.Object)">
+            <summary>
+            根据主键删除-异步
+            </summary>
+            <param name="id"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.Delete(`0)">
+            <summary>
+            根据实体删除
+            </summary>
+            <param name="obj"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.DeleteAsync(`0)">
+            <summary>
+            根据实体删除-异步
+            </summary>
+            <param name="obj"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.Delete(System.Linq.Expressions.Expression{System.Func{`0,System.Boolean}})">
+            <summary>
+            根据表达式删除
+            </summary>
+            <param name="whereExpression"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.DeleteAsync(System.Linq.Expressions.Expression{System.Func{`0,System.Boolean}})">
+            <summary>
+            根据表达式删除-异步
+            </summary>
+            <param name="whereExpression"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.Update(`0)">
+            <summary>
+            更新
+            </summary>
+            <param name="obj"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.UpdateAsync(`0)">
+            <summary>
+            更新-异步
+            </summary>
+            <param name="obj"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.UpdateRange(System.Collections.Generic.List{`0})">
+            <summary>
+            批量更新
+            </summary>
+            <param name="objs"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.InsertOrUpdate(`0)">
+            <summary>
+            新增或修改
+            </summary>
+            <param name="obj"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.InsertOrUpdateAsync(`0)">
+            <summary>
+            新增或修改-异步
+            </summary>
+            <param name="obj"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.UpdateRangeAsync(System.Collections.Generic.List{`0})">
+            <summary>
+            批量更新-异步
+            </summary>
+            <param name="objs"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.IsAny(System.Linq.Expressions.Expression{System.Func{`0,System.Boolean}})">
+            <summary>
+            是否包含元素
+            </summary>
+            <param name="whereExpression"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.Repository`1.IsAnyAsync(System.Linq.Expressions.Expression{System.Func{`0,System.Boolean}})">
+            <summary>
+            是否包含元素-异步
+            </summary>
+            <param name="whereExpression"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Base.SqlSugarHelper.SqlScope">
+            <summary>
+            sqlserver连接
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage">
+            <summary>
+            聊天消息实体
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage.Id">
+            <summary>
+            消息ID
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage.ConnectionId">
+            <summary>
+            数据库连接ID
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage.Message">
+            <summary>
+            消息内容
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage.IsUser">
+            <summary>
+            是否为用户消息
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage.SqlQuery">
+            <summary>
+            SQL查询语句（仅AI响应消息）
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage.ExecutionError">
+            <summary>
+            执行错误信息（仅AI响应消息）
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage.CreateTime">
+            <summary>
+            创建时间
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage.QueryResult">
+            <summary>
+            查询结果（非持久化）
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessageRepository">
+            <summary>
+            聊天消息仓储实现
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessageRepository.GetByConnectionIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessageRepository.InsertAsync(Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage)">
+            <inheritdoc/>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.IChatMessageRepository">
+            <summary>
+            聊天消息仓储接口
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.IChatMessageRepository.GetByConnectionIdAsync(System.String)">
+            <summary>
+            获取指定连接的聊天历史
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <returns>聊天消息列表</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.IChatMessageRepository.InsertAsync(Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage)">
+            <summary>
+            添加聊天消息
+            </summary>
+            <param name="chatMessage">聊天消息</param>
+            <returns>是否成功</returns>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig">
+            <summary>
+            数据库连接配置
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig.Id">
+            <summary>
+            配置ID
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig.Name">
+            <summary>
+            数据库连接名称
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig.DbType">
+            <summary>
+            数据库类型简称 (兼容现有代码)
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig.Server">
+            <summary>
+            数据库服务器地址
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig.Port">
+            <summary>
+            端口号
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig.Database">
+            <summary>
+            数据库名称
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig.Username">
+            <summary>
+            用户名
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig.Password">
+            <summary>
+            密码
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig.ConnectionString">
+            <summary>
+            连接字符串
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig.Description">
+            <summary>
+            描述信息
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig.CreateTime">
+            <summary>
+            创建时间
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig.UpdateTime">
+            <summary>
+            更新时间
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfigRepository">
+            <summary>
+            数据库连接配置仓储实现类
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.IDatabaseConnectionConfigRepository">
+            <summary>
+            数据库连接配置仓储接口
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.DatabaseSchema">
+            <summary>
+            数据库Schema信息
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.DatabaseSchema.Id">
+            <summary>
+            Schema ID
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.DatabaseSchema.ConnectionId">
+            <summary>
+            数据库连接ID
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.DatabaseSchema.SchemaContent">
+            <summary>
+            表和列信息的JSON字符串
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.DatabaseSchema.CreateTime">
+            <summary>
+            创建时间
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.DatabaseSchema.UpdateTime">
+            <summary>
+            更新时间
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo">
+            <summary>
+            数据库表信息
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo.TableName">
+            <summary>
+            表名
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo.Description">
+            <summary>
+            表描述
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo.Columns">
+            <summary>
+            列信息
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ColumnInfo">
+            <summary>
+            数据库列信息
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ColumnInfo.ColumnName">
+            <summary>
+            列名
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ColumnInfo.DataType">
+            <summary>
+            数据类型
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ColumnInfo.IsPrimaryKey">
+            <summary>
+            是否主键
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ColumnInfo.IsNullable">
+            <summary>
+            是否允许为空
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ColumnInfo.Description">
+            <summary>
+            列描述
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.DatabaseSchemaRepository">
+            <summary>
+            数据库Schema仓储实现
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.DatabaseSchemaRepository.GetByConnectionIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.IDatabaseSchemaRepository">
+            <summary>
+            数据库Schema仓储接口
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.IDatabaseSchemaRepository.GetByConnectionIdAsync(System.String)">
+            <summary>
+            根据连接ID获取Schema
+            </summary>
+            <param name="connectionId">连接ID</param>
+            <returns>Schema对象</returns>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.ISchemaEmbeddingRepository">
+            <summary>
+            Schema向量嵌入仓储接口
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.ISchemaEmbeddingRepository.GetByConnectionIdAsync(System.String)">
+            <summary>
+            根据连接ID获取所有嵌入
+            </summary>
+            <param name="connectionId">连接ID</param>
+            <returns>嵌入列表</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.ISchemaEmbeddingRepository.GetByTableAsync(System.String,System.String)">
+            <summary>
+            根据连接ID和表名获取嵌入
+            </summary>
+            <param name="connectionId">连接ID</param>
+            <param name="tableName">表名</param>
+            <returns>嵌入列表</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.ISchemaEmbeddingRepository.DeleteByConnectionIdAsync(System.String)">
+            <summary>
+            删除指定连接ID的所有嵌入
+            </summary>
+            <param name="connectionId">连接ID</param>
+            <returns>是否成功</returns>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.SchemaEmbedding">
+            <summary>
+            Schema向量嵌入
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.SchemaEmbedding.Id">
+            <summary>
+            嵌入ID
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.SchemaEmbedding.ConnectionId">
+            <summary>
+            数据库连接ID
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.SchemaEmbedding.TableName">
+            <summary>
+            表名
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.SchemaEmbedding.ColumnName">
+            <summary>
+            列名
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.SchemaEmbedding.Description">
+            <summary>
+            描述信息
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.SchemaEmbedding.Vector">
+            <summary>
+            向量数据（JSON格式）
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.SchemaEmbedding.CreateTime">
+            <summary>
+            创建时间
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.SchemaEmbedding.UpdateTime">
+            <summary>
+            更新时间
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.SchemaEmbedding.EmbeddingType">
+            <summary>
+            向量类型（表/列/关系等）
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.EmbeddingType">
+            <summary>
+            嵌入类型枚举
+            </summary>
+        </member>
+        <member name="F:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.EmbeddingType.Table">
+            <summary>
+            表信息嵌入
+            </summary>
+        </member>
+        <member name="F:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.EmbeddingType.Column">
+            <summary>
+            列信息嵌入
+            </summary>
+        </member>
+        <member name="F:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.EmbeddingType.Relation">
+            <summary>
+            表关系嵌入
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.SchemaEmbeddingRepository">
+            <summary>
+            Schema向量嵌入仓储实现
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.SchemaEmbeddingRepository.GetByConnectionIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.SchemaEmbeddingRepository.GetByTableAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.SchemaEmbeddingRepository.DeleteByConnectionIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.IsNull(System.Object)">
+            <summary>
+            判断是否为空，为空返回true
+            </summary>
+            <param name="data"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.IsNotNull(System.Object)">
+            <summary>
+            判断是否为空，为空返回true
+            </summary>
+            <param name="data"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.IsNull(System.String)">
+            <summary>
+            判断是否为空，为空返回true
+            </summary>
+            <param name="data"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.ConvertToString(System.Object)">
+            <summary>
+            将obj类型转换为string
+            </summary>
+            <param name="s"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.ConvertToInt32(System.Object)">
+            <summary>
+            object 转int32
+            </summary>
+            <param name="s"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.ConvertToInt64(System.Object)">
+            <summary>
+            object 转int32
+            </summary>
+            <param name="s"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.ConvertToDouble(System.Object)">
+            <summary>
+            将字符串转double
+            </summary>
+            <param name="s"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.ConvertToDateTime(System.String)">
+            <summary>
+            转换为datetime类型
+            </summary>
+            <param name="s"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.ConvertToDateTime(System.String,System.String)">
+            <summary>
+            转换为datetime类型的格式字符串
+            </summary>
+            <param name="s">要转换的对象</param>
+            <param name="y">格式化字符串</param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.ConvertToDecimal(System.Object)">
+            <summary>
+            将字符串转换成decimal
+            </summary>
+            <param name="s"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.DecimalFraction(System.Decimal)">
+            <summary>
+            decimal保留2位小数
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.ReplaceHtml(System.String)">
+            <summary>
+            替换html种的特殊字符
+            </summary>
+            <param name="s"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.StreamToByte(System.IO.Stream)">
+            <summary>
+            流转byte
+            </summary>
+            <param name="stream"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.ToQueryString(System.Collections.Generic.Dictionary{System.String,System.String})">
+            <summary>
+            json参数转化querystring参数
+            </summary>
+            <param name="parameters"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.ComparisonIgnoreCase(System.String,System.String)">
+            <summary>
+            忽略大小写匹配
+            </summary>
+            <param name="s"></param>
+            <param name="value"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.IsStream(System.String)">
+            <summary>
+            是否为流式请求
+            </summary>
+            <param name="value"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.ConvertUtils.Unescape(System.String)">
+            <summary>
+            \uxxxx转中文,保留换行符号
+            </summary>
+            <param name="unicodeString"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Text2Sql.Net.Utils.RepoFiles.SamplePluginsPath">
+            <summary>
+            Scan the local folders from the repo, looking for "samples/plugins" folder.
+            </summary>
+            <returns>The full path to samples/plugins</returns>
+        </member>
+        <member name="T:Microsoft.Extensions.DependencyInjection.ServiceCollectionExtensions">
+            <summary>
+            容器扩展
+            </summary>
+        </member>
+        <member name="M:Microsoft.Extensions.DependencyInjection.ServiceCollectionExtensions.AddText2SqlNet(Microsoft.Extensions.DependencyInjection.IServiceCollection,Microsoft.SemanticKernel.Kernel)">
+            <summary>
+            从程序集中加载类型并添加到容器中
+            </summary>
+            <param name="services">容器</param>
+            <returns></returns>
+        </member>
+        <member name="M:Microsoft.Extensions.DependencyInjection.ServiceCollectionExtensions.InitSK(Microsoft.Extensions.DependencyInjection.IServiceCollection,Microsoft.SemanticKernel.Kernel)">
+            <summary>
+            初始化SK
+            </summary>
+            <param name="services"></param>
+            <param name="_kernel">可以提供自定义Kernel</param>
+        </member>
+        <member name="M:Microsoft.Extensions.DependencyInjection.ServiceCollectionExtensions.CodeFirst">
+            <summary>
+            初始化DB
+            </summary>
+        </member>
+    </members>
+</doc>

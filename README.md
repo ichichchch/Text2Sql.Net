@@ -1,2 +1,7 @@
-# Text2Sql.Net
-Text2Sql.Net 是一个使用DotNet和Semantic Kernel开发的Text2Sql工具
+简体中文 | [English](./README.en.md) 
+
+## 这是一个参考Text2Sql的dotnet简易实现
+
+
+
+也欢迎大家加入我们的微信交流群，可以添加我的微信：**xuzeyu91** 发送进群
