@@ -339,3 +339,4 @@ ASALocalRun/
 /src/GraphRag.Net/GraphRag.Net.xml
 *.db
 /src/Text2Sql.Net.Web/appsettings.Development.json
+/.vscode
