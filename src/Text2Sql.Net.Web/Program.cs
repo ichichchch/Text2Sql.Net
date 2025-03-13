@@ -34,7 +34,6 @@ builder.Services.AddSwaggerGen(c => {
 });
 
 builder.Configuration.GetSection("Text2SqlOpenAI").Get<Text2SqlOpenAIOption>();
-builder.Configuration.GetSection("TextChunker").Get<TextChunkerOption>();
 builder.Configuration.GetSection("Text2SqlConnection").Get<Text2SqlConnectionOption>();
 
 builder.Services.AddText2SqlNet();
