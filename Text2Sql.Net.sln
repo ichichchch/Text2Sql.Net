@@ -7,6 +7,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决�
 	ProjectSection(SolutionItems) = preProject
 		Directory.Build.props = Directory.Build.props
 		.github\workflows\nuget-publish.yml = .github\workflows\nuget-publish.yml
+		README.en.md = README.en.md
 		README.md = README.md
 	EndProjectSection
 EndProject
