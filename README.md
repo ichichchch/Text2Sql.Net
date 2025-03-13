@@ -1,6 +1,6 @@
 简体中文 | [English](./README.en.md) 
 
-## 这是一个参考Text2Sql的dotnet简易实现
+## 这是一个Text2Sql的dotnet简易实现
 
 ![demo](https://github.com/AIDotNet/Text2Sql.Net/blob/main/doc/demo.png?raw=true)
 

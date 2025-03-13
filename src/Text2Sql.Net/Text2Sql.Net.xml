@@ -24,16 +24,6 @@
             向量数据维度，PG需要设置
             </summary>
         </member>
-        <member name="P:Text2Sql.Net.Options.TextChunkerOption.LinesToken">
-            <summary>
-            行切片token
-            </summary>
-        </member>
-        <member name="P:Text2Sql.Net.Options.TextChunkerOption.ParagraphsToken">
-            <summary>
-            段落切片token
-            </summary>
-        </member>
         <member name="T:Text2Sql.Net.Domain.Interface.IChatService">
             <summary>
             聊天服务接口
