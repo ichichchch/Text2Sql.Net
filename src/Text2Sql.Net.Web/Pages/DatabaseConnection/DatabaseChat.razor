@@ -27,7 +27,7 @@
                     </Select>
                 </div>
 
-                <div class="chat-history-container @(_isChatCollapsed ? "collapsed" : "")" @ref="_chatContainerRef">
+                <div class="chat-history-container" @ref="_chatContainerRef">
                     @if (_loadingHistory)
                     {
                         <div class="loading-container">
@@ -36,60 +36,51 @@
                     }
                     else if (_chatHistory != null && _chatHistory.Count > 0)
                     {
-                        <div class="toggle-container">
-                            <Button Type="@ButtonType.Link" 
-                                    OnClick="@(() => _isChatCollapsed = !_isChatCollapsed)"
-                                    Class="toggle-button">
-                                <Icon Type="@(_isChatCollapsed ? "down" : "up")" />
-                                @(_isChatCollapsed ? "展开聊天记录" : "折叠聊天记录")
-                            </Button>
-                        </div>
-                        
-                        @if (!_isChatCollapsed)
-                        {
-                            <AntList TItem="ChatMessage"
-                                     DataSource="_chatHistory"
-                                     ItemLayout="ListItemLayout.Horizontal">
 
-                                <ListItem>
-                                    <Card Bordered="false" Class="@(context.IsUser ? "user-message" : "assistant-message")">
-                                        <div class="message-header">
-                                            <strong>@(context.IsUser ? "你" : "AI")</strong>
-                                            <span class="message-time">@context.CreateTime.ToString("yyyy-MM-dd HH:mm:ss")</span>
-                                        </div>
-                                        <div class="message-content">
-                                            @context.Message
-                                        </div>
-                                        @if (!context.IsUser && !string.IsNullOrEmpty(context.SqlQuery))
-                                        {
-                                            <div class="sql-content">
-                                                <Divider Orientation="left">生成的SQL</Divider>
-                                                <pre>@context.SqlQuery</pre>
-                                                <div class="sql-actions">
-                                                    <Button Type="@ButtonType.Link" OnClick="async () => await CopySqlToClipboard(context.SqlQuery)">
-                                                        <Icon Type="copy" /> 复制
-                                                    </Button>
-                                                    <Button Type="@ButtonType.Link" OnClick="async () => await ExecuteSqlAsync(context.SqlQuery)">
-                                                        <Icon Type="play-circle" /> 执行
-                                                    </Button>
-                                                    @if (_sqlResult != null && context.SqlQuery == _lastExecutedSql)
-                                                    {
-                                                        <Button Type="@ButtonType.Link" OnClick="@(() => _isResultModalVisible = true)">
-                                                            <Icon Type="table" /> 查看结果
-                                                        </Button>
-                                                    }
-                                                </div>
-                                                @if (!string.IsNullOrEmpty(context.ExecutionError))
+
+                        <AntList TItem="ChatMessage"
+                                 DataSource="_chatHistory"
+                                 ItemLayout="ListItemLayout.Horizontal">
+
+                            <ListItem>
+                                <Card Bordered="false" Class="@(context.IsUser ? "user-message" : "assistant-message")">
+                                    <div class="message-header">
+                                        <strong>@(context.IsUser ? "你" : "AI")</strong>
+                                        <span class="message-time">@context.CreateTime.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                                    </div>
+                                    <div class="message-content">
+                                        @context.Message
+                                    </div>
+                                    @if (!context.IsUser && !string.IsNullOrEmpty(context.SqlQuery))
+                                    {
+                                        <div class="sql-content">
+                                            <Divider Orientation="left">生成的SQL</Divider>
+                                            <pre>@context.SqlQuery</pre>
+                                            <div class="sql-actions">
+                                                <Button Type="@ButtonType.Link" OnClick="async () => await CopySqlToClipboard(context.SqlQuery)">
+                                                    <Icon Type="copy" /> 复制
+                                                </Button>
+                                                <Button Type="@ButtonType.Link" OnClick="async () => await ExecuteSqlAsync(context.SqlQuery)">
+                                                    <Icon Type="play-circle" /> 执行
+                                                </Button>
+                                                @if (_sqlResult != null && context.SqlQuery == _lastExecutedSql)
                                                 {
-                                                    <Alert Type="@AlertType.Error" Message="执行错误" Description="@context.ExecutionError" ShowIcon="true" />
+                                                    <Button Type="@ButtonType.Link" OnClick="@(() => _isResultModalVisible = true)">
+                                                        <Icon Type="table" /> 查看结果
+                                                    </Button>
                                                 }
                                             </div>
-                                        }
-                                    </Card>
-                                </ListItem>
+                                            @if (!string.IsNullOrEmpty(context.ExecutionError))
+                                            {
+                                                <Alert Type="@AlertType.Error" Message="执行错误" Description="@context.ExecutionError" ShowIcon="true" />
+                                            }
+                                        </div>
+                                    }
+                                </Card>
+                            </ListItem>
 
-                            </AntList>
-                        }
+                        </AntList>
+
                     }
                     else
                     {
@@ -142,7 +133,7 @@
                     </SpaceItem>
                 </Space>
             </div>
-            
+
             <Table TItem="Dictionary<string, object>"
                    DataSource="@_sqlResult"
                    Loading="@_loading"
@@ -169,7 +160,7 @@
     .database-chat-container {
         display: flex;
         flex-direction: column;
-        height: 900px;
+        height: 800px;
         gap: 16px;
         position: relative;
     }
@@ -186,10 +177,10 @@
         transition: all 0.3s ease;
     }
 
-    .chat-history-container.collapsed {
-        max-height: 40px;
-        overflow: hidden;
-    }
+        .chat-history-container.collapsed {
+            max-height: 40px;
+            overflow: hidden;
+        }
 
     .loading-container {
         display: flex;
@@ -214,7 +205,7 @@
     }
 
     .user-message {
-        width:100%;
+        width: 100%;
         background-color: #e6f7ff;
         margin-left: 20%;
         margin-right: 0;
@@ -295,10 +286,10 @@
         transition: all 0.3s ease;
     }
 
-    .sql-result-container.collapsed {
-        max-height: 40px;
-        overflow: hidden;
-    }
+        .sql-result-container.collapsed {
+            max-height: 40px;
+            overflow: hidden;
+        }
 
     .toggle-container {
         display: flex;
@@ -326,7 +317,7 @@
         width: 100%;
         padding: 0;
     }
-    
+
     .result-info {
         margin-bottom: 16px;
     }
@@ -370,7 +361,6 @@
     private List<Dictionary<string, object>> _sqlResult;
     private List<string> _sqlColumns = new List<string>();
     private ElementReference _chatContainerRef;
-    private bool _isChatCollapsed = false;
     private bool _isResultModalVisible = false;
     private string _lastExecutedSql;
 
@@ -379,7 +369,6 @@
         // 确保初始化时状态正确
         _loading = false;
         _loadingHistory = false;
-        _isChatCollapsed = false;
         _isResultModalVisible = false;
 
         try
@@ -418,7 +407,6 @@
             _loadingHistory = true;
             _sqlResult = null;
             _sqlColumns.Clear();
-            _isChatCollapsed = false;
             _isResultModalVisible = false;
 
             try
@@ -458,8 +446,6 @@
         try
         {
             _loading = true;
-            // 确保聊天窗口可见
-            _isChatCollapsed = false;
 
             // 添加用户消息到聊天历史
             var userMessage = new ChatMessage
