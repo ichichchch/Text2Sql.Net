@@ -19,8 +19,33 @@ This project supports SQL Server, MySQL, PostgreSQL and SQLite. Configuration ex
   "DbType": "Sqlite", //PostgreSQL
   "DBConnection": "Data Source=text2sql.db",
   "VectorConnection": "text2sqlmem.db",
-  "VectorSize": 1536 //Required for PostgreSQL
+  "VectorSize": 1536 //Required for PostgreSQL, optional for SQLite
 }
+```
+
+### Core Modules
+1. **Database Abstraction Layer**
+   - Multi-database support via strategy pattern
+   - Standardized operations through IDatabaseProvider interface
+   - Dynamic loading of database drivers (SQLite/Postgres/MySql/SqlServer)
+   - Auto-generated database-specific SQL dialects
+
+4. **Vector Database Integration**
+   - SQLite in-memory vector search
+   - PostgreSQL pgvector extension support
+   - Unified IVectorRepository interface
+   - Cosine similarity/Euclidean distance calculations
+
+## Core Process Flow
+```mermaid
+flowchart TD
+    A[User Input] --> B(Semantic Parsing)
+    B --> C{Syntax Validation}
+    C -->|Valid| D[AST Generation]
+    C -->|Invalid| E[Error Feedback]
+    D --> F[SQL Generation]
+    F --> G[Execution Optimization]
+    G --> H[Result Return]
 ```
 
 ## Community

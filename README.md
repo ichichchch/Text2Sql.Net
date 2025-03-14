@@ -18,20 +18,22 @@
     "DbType": "Sqlite", //PostgreSQL
     "DBConnection": "Data Source=text2sql.db",
     "VectorConnection": "text2sqlmem.db",
-    "VectorSize": 1536 //PostgreSQL，需要设置，sqlite可以不设置
+    "VectorSize": 1536 //PostgreSQL需要设置，sqlite可以不设置
   }
 ```
 
 也欢迎大家加入我们的微信交流群，可以添加我的微信：**xuzeyu91** 发送进群
 
 ### 核心模块
-1. **数据库适配层**
+ **数据库适配层**
+
+ **向量数据库集成**
    - 基于策略模式实现多数据库支持
    - 通过IDatabaseProvider接口定义标准操作
    - 动态加载对应数据库驱动（SQLite/Postgres/MySql/SqlServer）
    - 自动生成数据库特定方言的SQL语句
 
-4. **向量数据库集成**
+ **向量数据库集成**
    - 基于SQLite的内存数据库实现向量快速检索
    - PostgreSQL使用pgvector扩展支持向量类型
    - 统一向量存储接口IVectorRepository
