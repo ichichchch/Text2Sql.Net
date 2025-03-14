@@ -191,95 +191,96 @@ namespace Text2Sql.Net.Domain.Service
                     {
                         string tableName = row["TABLE_NAME"].ToString();
                         string tableSchema = row["TABLE_SCHEMA"].ToString();
-                        
-                        // 尝试获取表备注(针对MSSQL)
-                        string tableComment = string.Empty;
                         try
                         {
-                            if (dbType == DbType.SqlServer)
-                            {
-                                DataTable commentTable = db.Ado.GetDataTable(
-                                    $@"SELECT CAST(value AS NVARCHAR(MAX)) AS [Description]
-                                    FROM sys.extended_properties 
-                                    WHERE major_id = OBJECT_ID('{tableName}') 
-                                    AND minor_id = 0 
-                                    AND name = 'MS_Description'");
-                                
-                                if (commentTable.Rows.Count > 0)
-                                {
-                                    tableComment = commentTable.Rows[0]["Description"]?.ToString();
-                                }
-                            }
-                            else if (dbType == DbType.MySql)
-                            {
-                                // 针对MySQL获取表注释
-                                DataTable commentTable = db.Ado.GetDataTable(
-                                    $@"SELECT TABLE_COMMENT 
-                                    FROM INFORMATION_SCHEMA.TABLES 
-                                    WHERE TABLE_SCHEMA = DATABASE() 
-                                    AND TABLE_NAME = '{tableName}'");
-                                
-                                if (commentTable.Rows.Count > 0)
-                                {
-                                    tableComment = commentTable.Rows[0]["TABLE_COMMENT"]?.ToString();
-                                }
-                            }
-                            else if (dbType == DbType.PostgreSQL)
-                            {
-                                // 针对PostgreSQL获取表注释
-                                DataTable commentTable = db.Ado.GetDataTable(
-                                    $@"SELECT obj_description('{tableSchema}.{tableName}'::regclass, 'pg_class') as comment");
-                                
-                                if (commentTable.Rows.Count > 0)
-                                {
-                                    tableComment = commentTable.Rows[0]["comment"]?.ToString();
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning($"获取表备注时出错：{ex.Message}");
-                        }
-
-                        // 创建表信息对象
-                        var tableInfo = new TableInfo
-                        {
-                            TableName = tableName,
-                            Description = !string.IsNullOrEmpty(tableComment) 
-                                ? $"Schema: {tableSchema}, 表: {tableName}, 备注: {tableComment}" 
-                                : $"Schema: {tableSchema}, 表: {tableName}"
-                        };
-
-                        // 获取表的列信息
-                        DataTable columnsTable = db.Ado.GetDataTable($"SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{tableName}'");
-                        
-                        // 获取主键信息
-                        DataTable primaryKeyTable = db.Ado.GetDataTable(
-                            $"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE " +
-                            $"WHERE TABLE_NAME = '{tableName}' AND CONSTRAINT_NAME LIKE 'PK_%'");
-                        
-                        var primaryKeys = new List<string>();
-                        foreach (DataRow pkRow in primaryKeyTable.Rows)
-                        {
-                            primaryKeys.Add(pkRow["COLUMN_NAME"].ToString());
-                        }
-
-                        // 添加列信息
-                        foreach (DataRow colRow in columnsTable.Rows)
-                        {
-                            string columnName = colRow["COLUMN_NAME"].ToString();
-                            string dataType = colRow["DATA_TYPE"].ToString();
-                            bool isNullable = colRow["IS_NULLABLE"].ToString().Equals("YES", StringComparison.OrdinalIgnoreCase);
-                            
-                            // 尝试获取列备注
-                            string columnComment = string.Empty;
+                            // 尝试获取表备注(针对MSSQL)
+                            string tableComment = string.Empty;
                             try
                             {
                                 if (dbType == DbType.SqlServer)
                                 {
-                                    // 针对SQL Server获取列注释
                                     DataTable commentTable = db.Ado.GetDataTable(
                                         $@"SELECT CAST(value AS NVARCHAR(MAX)) AS [Description]
+                                    FROM sys.extended_properties 
+                                    WHERE major_id = OBJECT_ID('{tableName}') 
+                                    AND minor_id = 0 
+                                    AND name = 'MS_Description'");
+
+                                    if (commentTable.Rows.Count > 0)
+                                    {
+                                        tableComment = commentTable.Rows[0]["Description"]?.ToString();
+                                    }
+                                }
+                                else if (dbType == DbType.MySql)
+                                {
+                                    // 针对MySQL获取表注释
+                                    DataTable commentTable = db.Ado.GetDataTable(
+                                        $@"SELECT TABLE_COMMENT 
+                                    FROM INFORMATION_SCHEMA.TABLES 
+                                    WHERE TABLE_SCHEMA = DATABASE() 
+                                    AND TABLE_NAME = '{tableName}'");
+
+                                    if (commentTable.Rows.Count > 0)
+                                    {
+                                        tableComment = commentTable.Rows[0]["TABLE_COMMENT"]?.ToString();
+                                    }
+                                }
+                                else if (dbType == DbType.PostgreSQL)
+                                {
+                                    // 针对PostgreSQL获取表注释
+                                    DataTable commentTable = db.Ado.GetDataTable(
+                                        $@"SELECT obj_description('{tableSchema}.{tableName}'::regclass, 'pg_class') as comment");
+
+                                    if (commentTable.Rows.Count > 0)
+                                    {
+                                        tableComment = commentTable.Rows[0]["comment"]?.ToString();
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning($"获取表备注时出错：{ex.Message}");
+                            }
+
+                            // 创建表信息对象
+                            var tableInfo = new TableInfo
+                            {
+                                TableName = tableName,
+                                Description = !string.IsNullOrEmpty(tableComment)
+                                    ? $"Schema: {tableSchema}, 表: {tableName}, 备注: {tableComment}"
+                                    : $"Schema: {tableSchema}, 表: {tableName}"
+                            };
+
+                            // 获取表的列信息
+                            DataTable columnsTable = db.Ado.GetDataTable($"SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{tableName}'");
+
+                            // 获取主键信息
+                            DataTable primaryKeyTable = db.Ado.GetDataTable(
+                                $"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE " +
+                                $"WHERE TABLE_NAME = '{tableName}' AND CONSTRAINT_NAME LIKE 'PK_%'");
+
+                            var primaryKeys = new List<string>();
+                            foreach (DataRow pkRow in primaryKeyTable.Rows)
+                            {
+                                primaryKeys.Add(pkRow["COLUMN_NAME"].ToString());
+                            }
+
+                            // 添加列信息
+                            foreach (DataRow colRow in columnsTable.Rows)
+                            {
+                                string columnName = colRow["COLUMN_NAME"].ToString();
+                                string dataType = colRow["DATA_TYPE"].ToString();
+                                bool isNullable = colRow["IS_NULLABLE"].ToString().Equals("YES", StringComparison.OrdinalIgnoreCase);
+
+                                // 尝试获取列备注
+                                string columnComment = string.Empty;
+                                try
+                                {
+                                    if (dbType == DbType.SqlServer)
+                                    {
+                                        // 针对SQL Server获取列注释
+                                        DataTable commentTable = db.Ado.GetDataTable(
+                                            $@"SELECT CAST(value AS NVARCHAR(MAX)) AS [Description]
                                         FROM sys.extended_properties
                                         WHERE major_id = OBJECT_ID('{tableName}')
                                         AND minor_id = (
@@ -289,64 +290,70 @@ namespace Text2Sql.Net.Domain.Service
                                             AND name = '{columnName}'
                                         )
                                         AND name = 'MS_Description'");
-                                    
-                                    if (commentTable.Rows.Count > 0)
-                                    {
-                                        columnComment = commentTable.Rows[0]["Description"]?.ToString();
+
+                                        if (commentTable.Rows.Count > 0)
+                                        {
+                                            columnComment = commentTable.Rows[0]["Description"]?.ToString();
+                                        }
                                     }
-                                }
-                                else if (dbType == DbType.MySql)
-                                {
-                                    // 针对MySQL获取列注释
-                                    DataTable commentTable = db.Ado.GetDataTable(
-                                        $@"SELECT COLUMN_COMMENT 
+                                    else if (dbType == DbType.MySql)
+                                    {
+                                        // 针对MySQL获取列注释
+                                        DataTable commentTable = db.Ado.GetDataTable(
+                                            $@"SELECT COLUMN_COMMENT 
                                         FROM INFORMATION_SCHEMA.COLUMNS 
                                         WHERE TABLE_SCHEMA = DATABASE() 
                                         AND TABLE_NAME = '{tableName}' 
                                         AND COLUMN_NAME = '{columnName}'");
-                                    
-                                    if (commentTable.Rows.Count > 0)
-                                    {
-                                        columnComment = commentTable.Rows[0]["COLUMN_COMMENT"]?.ToString();
+
+                                        if (commentTable.Rows.Count > 0)
+                                        {
+                                            columnComment = commentTable.Rows[0]["COLUMN_COMMENT"]?.ToString();
+                                        }
                                     }
-                                }
-                                else if (dbType == DbType.PostgreSQL)
-                                {
-                                    // 针对PostgreSQL获取列注释
-                                    DataTable commentTable = db.Ado.GetDataTable(
-                                        $@"SELECT col_description('{tableSchema}.{tableName}'::regclass::oid, 
+                                    else if (dbType == DbType.PostgreSQL)
+                                    {
+                                        // 针对PostgreSQL获取列注释
+                                        DataTable commentTable = db.Ado.GetDataTable(
+                                            $@"SELECT col_description('{tableSchema}.{tableName}'::regclass::oid, 
                                             (SELECT ordinal_position 
                                              FROM information_schema.columns 
                                              WHERE table_schema = '{tableSchema}' 
                                              AND table_name = '{tableName}' 
                                              AND column_name = '{columnName}')) as comment");
-                                    
-                                    if (commentTable.Rows.Count > 0)
-                                    {
-                                        columnComment = commentTable.Rows[0]["comment"]?.ToString();
+
+                                        if (commentTable.Rows.Count > 0)
+                                        {
+                                            columnComment = commentTable.Rows[0]["comment"]?.ToString();
+                                        }
                                     }
                                 }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogWarning($"获取列备注时出错：{ex.Message}");
+                                }
+
+                                var columnInfo = new ColumnInfo
+                                {
+                                    ColumnName = columnName,
+                                    DataType = dataType,
+                                    IsNullable = isNullable,
+                                    IsPrimaryKey = primaryKeys.Contains(columnName),
+                                    Description = !string.IsNullOrEmpty(columnComment)
+                                        ? $"列: {columnName}, 类型: {dataType}, 备注: {columnComment}"
+                                        : $"列: {columnName}, 类型: {dataType}"
+                                };
+
+                                tableInfo.Columns.Add(columnInfo);
                             }
-                            catch (Exception ex)
-                            {
-                                _logger.LogWarning($"获取列备注时出错：{ex.Message}");
-                            }
-                            
-                            var columnInfo = new ColumnInfo
-                            {
-                                ColumnName = columnName,
-                                DataType = dataType,
-                                IsNullable = isNullable,
-                                IsPrimaryKey = primaryKeys.Contains(columnName),
-                                Description = !string.IsNullOrEmpty(columnComment) 
-                                    ? $"列: {columnName}, 类型: {dataType}, 备注: {columnComment}" 
-                                    : $"列: {columnName}, 类型: {dataType}"
-                            };
-                            
-                            tableInfo.Columns.Add(columnInfo);
+
+                            tables.Add(tableInfo);
+                            _logger.LogInformation($"获取表({tableName})Schema");
                         }
-                        
-                        tables.Add(tableInfo);
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, $"获取表{tableName}Schema时出错：{ex.Message}");
+                        }
                     }
                 }
 

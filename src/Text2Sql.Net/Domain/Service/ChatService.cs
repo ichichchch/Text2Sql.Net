@@ -14,6 +14,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Text2Sql.Net.Domain.Interface;
 using Text2Sql.Net.Repositories.Text2Sql.ChatHistory;
+using Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection;
 using Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema;
 using Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding;
 
@@ -25,6 +26,7 @@ namespace Text2Sql.Net.Domain.Service
     [ServiceDescription(typeof(IChatService), ServiceLifetime.Scoped)]
     public class ChatService : IChatService
     {
+        private readonly IDatabaseConnectionConfigRepository _connectionRepository;
         private readonly IChatMessageRepository _chatRepository;
         private readonly IDatabaseSchemaRepository _schemaRepository;
         private readonly ISqlExecutionService _sqlExecutionService;
@@ -36,6 +38,7 @@ namespace Text2Sql.Net.Domain.Service
         /// 构造函数
         /// </summary>
         public ChatService(
+            IDatabaseConnectionConfigRepository connectionRepository,
             IChatMessageRepository chatRepository,
             IDatabaseSchemaRepository schemaRepository,
             ISqlExecutionService sqlExecutionService,
@@ -43,6 +46,7 @@ namespace Text2Sql.Net.Domain.Service
             Kernel kernel,
             ILogger<ChatService> logger)
         {
+            _connectionRepository = connectionRepository;
             _chatRepository = chatRepository;
             _schemaRepository = schemaRepository;
             _sqlExecutionService = sqlExecutionService;
@@ -85,8 +89,10 @@ namespace Text2Sql.Net.Domain.Service
                     return CreateErrorResponse(connectionId, "无法找到相关的数据库表结构信息");
                 }
 
+                var con =await _connectionRepository.GetByIdAsync(connectionId);
+
                 // 2. 使用语义核心生成SQL
-                string sqlQuery = await GenerateSqlQueryAsync(userMessage, schemaInfo);
+                string sqlQuery = await GenerateSqlQueryAsync(con.DbType,userMessage, schemaInfo);
                 if (string.IsNullOrEmpty(sqlQuery))
                 {
                     return CreateErrorResponse(connectionId, "无法生成SQL查询语句");
@@ -246,7 +252,7 @@ namespace Text2Sql.Net.Domain.Service
         /// <param name="userMessage">用户问题</param>
         /// <param name="schemaInfo">Schema信息</param>
         /// <returns>生成的SQL查询</returns>
-        private async Task<string> GenerateSqlQueryAsync(string userMessage, string schemaInfo)
+        private async Task<string> GenerateSqlQueryAsync(string dbType,string userMessage, string schemaInfo)
         {
             try
             {
@@ -257,6 +263,7 @@ namespace Text2Sql.Net.Domain.Service
                 KernelFunction generateSqlFun = _kernel.Plugins.GetFunction("text2sql", "generate_sql_query");
                 var args = new KernelArguments(settings)
                 {
+                    ["$dbType"] = dbType,
                     ["schemaInfo"] = schemaInfo,
                     ["userMessage"] = userMessage
 
