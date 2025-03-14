@@ -190,51 +190,72 @@ namespace Text2Sql.Net.Domain.Service
                     return string.Empty;
                 }
 
-                // 使用向量存储进行语义搜索
+                // 解析所有表结构信息
+                List<TableInfo> allTables = JsonConvert.DeserializeObject<List<TableInfo>>(schema.SchemaContent);
+                
+                // 使用向量存储进行语义搜索，采用动态阈值策略
                 SemanticTextMemory memory = await _semanticService.GetTextMemory();
+                
+                // 初始化相关性阈值和结果数量限制
+                double relevanceThreshold = 0.7; // 开始使用较高阈值
+                int minTablesRequired = 1; // 最少需要返回的表数量
+                int maxTables = 5; // 最多返回表数量
                 
                 // 使用await foreach处理异步枚举
                 var searchResults = new List<MemoryQueryResult>();
-                await foreach (var result in memory.SearchAsync(connectionId, userMessage, limit: 5, minRelevanceScore: 0.6))
-                {
-                    searchResults.Add(result);
-                }
-
-                if (searchResults.Count == 0)
-                {
-                    _logger.LogWarning($"未找到与问题相关的表结构信息：{userMessage}");
-                    return schema.SchemaContent; // 返回完整Schema
-                }
-
-                // 解析搜索结果，提取相关的表信息
                 var relevantTables = new List<TableInfo>();
-                foreach (var result in searchResults)
+                
+                // 动态阈值搜索策略
+                while (relevanceThreshold >= 0.4 && relevantTables.Count < minTablesRequired)
                 {
-                    try
+                    searchResults.Clear();
+                    _logger.LogInformation($"使用相关性阈值 {relevanceThreshold:F2} 进行搜索");
+                    
+                    await foreach (var result in memory.SearchAsync(connectionId, userMessage, limit: maxTables, minRelevanceScore: relevanceThreshold))
                     {
-                        var embedding = JsonConvert.DeserializeObject<SchemaEmbedding>(result.Metadata.Text);
-                        if (embedding != null && embedding.EmbeddingType == EmbeddingType.Table)
+                        searchResults.Add(result);
+                    }
+                    
+                    // 解析搜索结果，提取相关的表信息
+                    relevantTables.Clear();
+                    foreach (var result in searchResults)
+                    {
+                        try
                         {
-                            // 解析表结构
-                            List<TableInfo> allTables = JsonConvert.DeserializeObject<List<TableInfo>>(schema.SchemaContent);
-                            TableInfo tableInfo = allTables.FirstOrDefault(t => t.TableName == embedding.TableName);
-                            if (tableInfo != null && !relevantTables.Any(t => t.TableName == tableInfo.TableName))
+                            var embedding = JsonConvert.DeserializeObject<SchemaEmbedding>(result.Metadata.Text);
+                            if (embedding != null && embedding.EmbeddingType == EmbeddingType.Table)
                             {
-                                relevantTables.Add(tableInfo);
+                                // 解析表结构
+                                TableInfo tableInfo = allTables.FirstOrDefault(t => t.TableName == embedding.TableName);
+                                if (tableInfo != null && !relevantTables.Any(t => t.TableName == tableInfo.TableName))
+                                {
+                                    _logger.LogInformation($"找到相关表: {tableInfo.TableName}，相关性分数: {result.Relevance:F2}");
+                                    relevantTables.Add(tableInfo);
+                                }
                             }
                         }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, $"解析Schema嵌入信息时出错：{ex.Message}");
+                        }
                     }
-                    catch (Exception ex)
+                    
+                    // 如果没有找到足够的表，降低阈值继续尝试
+                    if (relevantTables.Count < minTablesRequired)
                     {
-                        _logger.LogError(ex, $"解析Schema嵌入信息时出错：{ex.Message}");
+                        relevanceThreshold -= 0.1; // 每次降低0.1
                     }
                 }
 
-                // 如果没有找到相关表，返回完整Schema
+                // 如果仍然没有找到相关表，返回完整Schema
                 if (relevantTables.Count == 0)
                 {
+                    _logger.LogWarning($"未找到与问题相关的表结构信息，返回完整Schema：{userMessage}");
                     return schema.SchemaContent;
                 }
+                
+                // 应用表关联推断，添加关联表（将在下一步实现）
+                relevantTables = InferRelatedTables(relevantTables, allTables);
 
                 // 返回相关表的JSON
                 return JsonConvert.SerializeObject(relevantTables, Formatting.Indented);
@@ -244,6 +265,112 @@ namespace Text2Sql.Net.Domain.Service
                 _logger.LogError(ex, $"获取相关Schema信息时出错：{ex.Message}");
                 return string.Empty;
             }
+        }
+
+        /// <summary>
+        /// 推断并添加与已找到表相关联的表
+        /// </summary>
+        /// <param name="sourceTables">已找到的相关表</param>
+        /// <param name="allTables">所有表列表</param>
+        /// <returns>包含关联表的扩展列表</returns>
+        private List<TableInfo> InferRelatedTables(List<TableInfo> sourceTables, List<TableInfo> allTables)
+        {
+            var extendedTables = new List<TableInfo>(sourceTables);
+            var tableNames = new HashSet<string>(sourceTables.Select(t => t.TableName));
+            var addedTables = new HashSet<string>();
+            
+            _logger.LogInformation($"开始推断相关表关联，源表数量：{sourceTables.Count}");
+            
+            // 定义最大关联表数（防止表过多）
+            int maxRelatedTables = 10;
+            
+            // 第一步：从外键关系向外扩展
+            foreach (var table in sourceTables)
+            {
+                foreach (var fk in table.ForeignKeys)
+                {
+                    if (!tableNames.Contains(fk.ReferencedTableName) && !addedTables.Contains(fk.ReferencedTableName))
+                    {
+                        // 查找引用的表
+                        var referencedTable = allTables.FirstOrDefault(t => t.TableName == fk.ReferencedTableName);
+                        if (referencedTable != null)
+                        {
+                            _logger.LogInformation($"添加被引用表：{referencedTable.TableName}，通过外键 {fk.ForeignKeyName}");
+                            extendedTables.Add(referencedTable);
+                            addedTables.Add(referencedTable.TableName);
+                            
+                            if (extendedTables.Count >= sourceTables.Count + maxRelatedTables)
+                                break;
+                        }
+                    }
+                }
+                
+                if (extendedTables.Count >= sourceTables.Count + maxRelatedTables)
+                    break;
+            }
+            
+            // 第二步：查找引用源表的外表
+            if (extendedTables.Count < sourceTables.Count + maxRelatedTables)
+            {
+                foreach (var sourceTable in sourceTables)
+                {
+                    // 查找所有引用了这个表的表
+                    foreach (var table in allTables)
+                    {
+                        if (tableNames.Contains(table.TableName) || addedTables.Contains(table.TableName))
+                            continue;
+                        
+                        // 检查该表的外键是否引用了源表
+                        bool isReferencing = table.ForeignKeys.Any(fk => fk.ReferencedTableName == sourceTable.TableName);
+                        
+                        if (isReferencing)
+                        {
+                            _logger.LogInformation($"添加引用表：{table.TableName}，引用了 {sourceTable.TableName}");
+                            extendedTables.Add(table);
+                            addedTables.Add(table.TableName);
+                            
+                            if (extendedTables.Count >= sourceTables.Count + maxRelatedTables)
+                                break;
+                        }
+                    }
+                    
+                    if (extendedTables.Count >= sourceTables.Count + maxRelatedTables)
+                        break;
+                }
+            }
+            
+            // 第三步：估计一对多和多对多关系 - 查找中间表
+            // 中间表通常有两个外键，分别指向不同的表
+            if (extendedTables.Count < sourceTables.Count + maxRelatedTables)
+            {
+                var currentTableNames = new HashSet<string>(extendedTables.Select(t => t.TableName));
+                
+                foreach (var table in allTables)
+                {
+                    if (currentTableNames.Contains(table.TableName))
+                        continue;
+                    
+                    // 检查该表是否连接了两个或更多已知表（可能是中间表）
+                    var referencedTables = table.ForeignKeys
+                        .Select(fk => fk.ReferencedTableName)
+                        .Where(t => currentTableNames.Contains(t))
+                        .Distinct()
+                        .ToList();
+                    
+                    if (referencedTables.Count >= 2)
+                    {
+                        _logger.LogInformation($"添加中间表：{table.TableName}，连接了 {string.Join(", ", referencedTables)}");
+                        extendedTables.Add(table);
+                        addedTables.Add(table.TableName);
+                        
+                        if (extendedTables.Count >= sourceTables.Count + maxRelatedTables)
+                            break;
+                    }
+                }
+            }
+            
+            _logger.LogInformation($"表关联推断完成，扩展后表数量：{extendedTables.Count}");
+            return extendedTables;
         }
 
         /// <summary>

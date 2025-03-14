@@ -93,6 +93,17 @@ namespace Text2Sql.Net.Domain.Service
                     StringBuilder tableDescription = new StringBuilder();
                     tableDescription.AppendLine($"表名: {table.TableName}");
                     tableDescription.AppendLine($"描述: {table.Description ?? "无描述"}");
+
+                    // 添加外键关系信息
+                    if (table.ForeignKeys != null && table.ForeignKeys.Count > 0)
+                    {
+                        tableDescription.AppendLine("外键关系:");
+                        foreach (var fk in table.ForeignKeys)
+                        {
+                            tableDescription.AppendLine($"  - {fk.RelationshipDescription}");
+                        }
+                    }
+
                     tableDescription.AppendLine("列信息:");
 
                     foreach (var column in table.Columns)
@@ -347,6 +358,131 @@ namespace Text2Sql.Net.Domain.Service
                                 tableInfo.Columns.Add(columnInfo);
                             }
 
+                            // 获取外键信息
+                            try
+                            {
+                                if (dbType == DbType.SqlServer)
+                                {
+                                    // SQL Server获取外键信息
+                                    string fkQuery = @"
+                                        SELECT 
+                                            FK.name AS FK_NAME,
+                                            COL.name AS COLUMN_NAME,
+                                            REFCOL.name AS REFERENCED_COLUMN_NAME,
+                                            REFTAB.name AS REFERENCED_TABLE_NAME
+                                        FROM 
+                                            sys.foreign_keys FK
+                                            INNER JOIN sys.foreign_key_columns FKC ON FK.object_id = FKC.constraint_object_id
+                                            INNER JOIN sys.columns COL ON FKC.parent_column_id = COL.column_id AND FKC.parent_object_id = COL.object_id
+                                            INNER JOIN sys.columns REFCOL ON FKC.referenced_column_id = REFCOL.column_id AND FKC.referenced_object_id = REFCOL.object_id
+                                            INNER JOIN sys.tables TAB ON FKC.parent_object_id = TAB.object_id
+                                            INNER JOIN sys.tables REFTAB ON FKC.referenced_object_id = REFTAB.object_id
+                                        WHERE 
+                                            TAB.name = '" + tableName + "'";
+
+                                    DataTable fkTable = db.Ado.GetDataTable(fkQuery);
+                                    foreach (DataRow fkRow in fkTable.Rows)
+                                    {
+                                        var fkInfo = new ForeignKeyInfo
+                                        {
+                                            ForeignKeyName = fkRow["FK_NAME"].ToString(),
+                                            ColumnName = fkRow["COLUMN_NAME"].ToString(),
+                                            ReferencedColumnName = fkRow["REFERENCED_COLUMN_NAME"].ToString(),
+                                            ReferencedTableName = fkRow["REFERENCED_TABLE_NAME"].ToString(),
+                                            RelationshipDescription = $"从表 {tableName} 通过 {fkRow["COLUMN_NAME"]} 关联到主表 {fkRow["REFERENCED_TABLE_NAME"]} 的 {fkRow["REFERENCED_COLUMN_NAME"]}"
+                                        };
+                                        tableInfo.ForeignKeys.Add(fkInfo);
+                                    }
+                                }
+                                else if (dbType == DbType.MySql)
+                                {
+                                    // MySQL获取外键信息
+                                    string fkQuery = $@"
+                                        SELECT
+                                            CONSTRAINT_NAME AS FK_NAME,
+                                            COLUMN_NAME,
+                                            REFERENCED_TABLE_NAME,
+                                            REFERENCED_COLUMN_NAME
+                                        FROM
+                                            INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+                                        WHERE
+                                            TABLE_NAME = '{tableName}'
+                                            AND REFERENCED_TABLE_NAME IS NOT NULL
+                                            AND TABLE_SCHEMA = DATABASE()";
+
+                                    DataTable fkTable = db.Ado.GetDataTable(fkQuery);
+                                    foreach (DataRow fkRow in fkTable.Rows)
+                                    {
+                                        var fkInfo = new ForeignKeyInfo
+                                        {
+                                            ForeignKeyName = fkRow["FK_NAME"].ToString(),
+                                            ColumnName = fkRow["COLUMN_NAME"].ToString(),
+                                            ReferencedColumnName = fkRow["REFERENCED_COLUMN_NAME"].ToString(),
+                                            ReferencedTableName = fkRow["REFERENCED_TABLE_NAME"].ToString(),
+                                            RelationshipDescription = $"从表 {tableName} 通过 {fkRow["COLUMN_NAME"]} 关联到主表 {fkRow["REFERENCED_TABLE_NAME"]} 的 {fkRow["REFERENCED_COLUMN_NAME"]}"
+                                        };
+                                        tableInfo.ForeignKeys.Add(fkInfo);
+                                    }
+                                }
+                                else if (dbType == DbType.PostgreSQL)
+                                {
+                                    // PostgreSQL获取外键信息
+                                    string fkQuery = $@"
+                                        SELECT
+                                            con.conname AS fk_name,
+                                            att.attname AS column_name,
+                                            ref_att.attname AS referenced_column_name,
+                                            ref_cl.relname AS referenced_table_name
+                                        FROM
+                                            pg_constraint con
+                                            JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = ANY(con.conkey)
+                                            JOIN pg_attribute ref_att ON ref_att.attrelid = con.confrelid AND ref_att.attnum = ANY(con.confkey)
+                                            JOIN pg_class cl ON cl.oid = con.conrelid
+                                            JOIN pg_class ref_cl ON ref_cl.oid = con.confrelid
+                                        WHERE
+                                            con.contype = 'f'
+                                            AND cl.relname = '{tableName}'";
+
+                                    DataTable fkTable = db.Ado.GetDataTable(fkQuery);
+                                    foreach (DataRow fkRow in fkTable.Rows)
+                                    {
+                                        var fkInfo = new ForeignKeyInfo
+                                        {
+                                            ForeignKeyName = fkRow["fk_name"].ToString(),
+                                            ColumnName = fkRow["column_name"].ToString(),
+                                            ReferencedColumnName = fkRow["referenced_column_name"].ToString(),
+                                            ReferencedTableName = fkRow["referenced_table_name"].ToString(),
+                                            RelationshipDescription = $"从表 {tableName} 通过 {fkRow["column_name"]} 关联到主表 {fkRow["referenced_table_name"]} 的 {fkRow["referenced_column_name"]}"
+                                        };
+                                        tableInfo.ForeignKeys.Add(fkInfo);
+                                    }
+                                }
+                                // SQLite没有标准的外键信息查询，可以通过pragma获取
+                                else if (dbType == DbType.Sqlite)
+                                {
+                                    // SQLite获取外键信息
+                                    string fkQuery = $"PRAGMA foreign_key_list('{SqliteEscapeIdentifier(tableName)}')";
+                                    DataTable fkTable = db.Ado.GetDataTable(fkQuery);
+                                    
+                                    foreach (DataRow fkRow in fkTable.Rows)
+                                    {
+                                        var fkInfo = new ForeignKeyInfo
+                                        {
+                                            ForeignKeyName = $"FK_{tableName}_{fkRow["from"]}_{fkRow["table"]}_{fkRow["to"]}",
+                                            ColumnName = fkRow["from"].ToString(),
+                                            ReferencedTableName = fkRow["table"].ToString(),
+                                            ReferencedColumnName = fkRow["to"].ToString(),
+                                            RelationshipDescription = $"从表 {tableName} 通过 {fkRow["from"]} 关联到主表 {fkRow["table"]} 的 {fkRow["to"]}"
+                                        };
+                                        tableInfo.ForeignKeys.Add(fkInfo);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning($"获取表{tableName}的外键信息时出错：{ex.Message}");
+                            }
+
                             tables.Add(tableInfo);
                             _logger.LogInformation($"获取表({tableName})Schema");
                         }
@@ -511,6 +647,131 @@ namespace Text2Sql.Net.Domain.Service
                     };
                     
                     tableInfo.Columns.Add(columnInfo);
+                }
+                
+                // 获取外键信息
+                try
+                {
+                    if (GetDbType(connectionConfig.DbType) == DbType.SqlServer)
+                    {
+                        // SQL Server获取外键信息
+                        string fkQuery = @"
+                            SELECT 
+                                FK.name AS FK_NAME,
+                                COL.name AS COLUMN_NAME,
+                                REFCOL.name AS REFERENCED_COLUMN_NAME,
+                                REFTAB.name AS REFERENCED_TABLE_NAME
+                            FROM 
+                                sys.foreign_keys FK
+                                INNER JOIN sys.foreign_key_columns FKC ON FK.object_id = FKC.constraint_object_id
+                                INNER JOIN sys.columns COL ON FKC.parent_column_id = COL.column_id AND FKC.parent_object_id = COL.object_id
+                                INNER JOIN sys.columns REFCOL ON FKC.referenced_column_id = REFCOL.column_id AND FKC.referenced_object_id = REFCOL.object_id
+                                INNER JOIN sys.tables TAB ON FKC.parent_object_id = TAB.object_id
+                                INNER JOIN sys.tables REFTAB ON FKC.referenced_object_id = REFTAB.object_id
+                            WHERE 
+                                TAB.name = '" + tableName + "'";
+
+                        DataTable fkTable = db.Ado.GetDataTable(fkQuery);
+                        foreach (DataRow fkRow in fkTable.Rows)
+                        {
+                            var fkInfo = new ForeignKeyInfo
+                            {
+                                ForeignKeyName = fkRow["FK_NAME"].ToString(),
+                                ColumnName = fkRow["COLUMN_NAME"].ToString(),
+                                ReferencedColumnName = fkRow["REFERENCED_COLUMN_NAME"].ToString(),
+                                ReferencedTableName = fkRow["REFERENCED_TABLE_NAME"].ToString(),
+                                RelationshipDescription = $"从表 {tableName} 通过 {fkRow["COLUMN_NAME"]} 关联到主表 {fkRow["REFERENCED_TABLE_NAME"]} 的 {fkRow["REFERENCED_COLUMN_NAME"]}"
+                            };
+                            tableInfo.ForeignKeys.Add(fkInfo);
+                        }
+                    }
+                    else if (GetDbType(connectionConfig.DbType) == DbType.MySql)
+                    {
+                        // MySQL获取外键信息
+                        string fkQuery = $@"
+                            SELECT
+                                CONSTRAINT_NAME AS FK_NAME,
+                                COLUMN_NAME,
+                                REFERENCED_TABLE_NAME,
+                                REFERENCED_COLUMN_NAME
+                            FROM
+                                INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+                            WHERE
+                                TABLE_NAME = '{tableName}'
+                                AND REFERENCED_TABLE_NAME IS NOT NULL
+                                AND TABLE_SCHEMA = DATABASE()";
+
+                        DataTable fkTable = db.Ado.GetDataTable(fkQuery);
+                        foreach (DataRow fkRow in fkTable.Rows)
+                        {
+                            var fkInfo = new ForeignKeyInfo
+                            {
+                                ForeignKeyName = fkRow["FK_NAME"].ToString(),
+                                ColumnName = fkRow["COLUMN_NAME"].ToString(),
+                                ReferencedColumnName = fkRow["REFERENCED_COLUMN_NAME"].ToString(),
+                                ReferencedTableName = fkRow["REFERENCED_TABLE_NAME"].ToString(),
+                                RelationshipDescription = $"从表 {tableName} 通过 {fkRow["COLUMN_NAME"]} 关联到主表 {fkRow["REFERENCED_TABLE_NAME"]} 的 {fkRow["REFERENCED_COLUMN_NAME"]}"
+                            };
+                            tableInfo.ForeignKeys.Add(fkInfo);
+                        }
+                    }
+                    else if (GetDbType(connectionConfig.DbType) == DbType.PostgreSQL)
+                    {
+                        // PostgreSQL获取外键信息
+                        string fkQuery = $@"
+                            SELECT
+                                con.conname AS fk_name,
+                                att.attname AS column_name,
+                                ref_att.attname AS referenced_column_name,
+                                ref_cl.relname AS referenced_table_name
+                            FROM
+                                pg_constraint con
+                                JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = ANY(con.conkey)
+                                JOIN pg_attribute ref_att ON ref_att.attrelid = con.confrelid AND ref_att.attnum = ANY(con.confkey)
+                                JOIN pg_class cl ON cl.oid = con.conrelid
+                                JOIN pg_class ref_cl ON ref_cl.oid = con.confrelid
+                            WHERE
+                                con.contype = 'f'
+                                AND cl.relname = '{tableName}'";
+
+                        DataTable fkTable = db.Ado.GetDataTable(fkQuery);
+                        foreach (DataRow fkRow in fkTable.Rows)
+                        {
+                            var fkInfo = new ForeignKeyInfo
+                            {
+                                ForeignKeyName = fkRow["fk_name"].ToString(),
+                                ColumnName = fkRow["column_name"].ToString(),
+                                ReferencedColumnName = fkRow["referenced_column_name"].ToString(),
+                                ReferencedTableName = fkRow["referenced_table_name"].ToString(),
+                                RelationshipDescription = $"从表 {tableName} 通过 {fkRow["column_name"]} 关联到主表 {fkRow["referenced_table_name"]} 的 {fkRow["referenced_column_name"]}"
+                            };
+                            tableInfo.ForeignKeys.Add(fkInfo);
+                        }
+                    }
+                    // SQLite没有标准的外键信息查询，可以通过pragma获取
+                    else if (GetDbType(connectionConfig.DbType) == DbType.Sqlite)
+                    {
+                        // SQLite获取外键信息
+                        string fkQuery = $"PRAGMA foreign_key_list('{SqliteEscapeIdentifier(tableName)}')";
+                        DataTable fkTable = db.Ado.GetDataTable(fkQuery);
+                        
+                        foreach (DataRow fkRow in fkTable.Rows)
+                        {
+                            var fkInfo = new ForeignKeyInfo
+                            {
+                                ForeignKeyName = $"FK_{tableName}_{fkRow["from"]}_{fkRow["table"]}_{fkRow["to"]}",
+                                ColumnName = fkRow["from"].ToString(),
+                                ReferencedTableName = fkRow["table"].ToString(),
+                                ReferencedColumnName = fkRow["to"].ToString(),
+                                RelationshipDescription = $"从表 {tableName} 通过 {fkRow["from"]} 关联到主表 {fkRow["table"]} 的 {fkRow["to"]}"
+                            };
+                            tableInfo.ForeignKeys.Add(fkInfo);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning($"获取表{tableName}的外键信息时出错：{ex.Message}");
                 }
                 
                 tables.Add(tableInfo);

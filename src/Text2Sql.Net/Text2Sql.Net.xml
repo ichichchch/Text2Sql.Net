@@ -148,6 +148,14 @@
             <param name="userMessage">用户问题</param>
             <returns>相关Schema信息</returns>
         </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.InferRelatedTables(System.Collections.Generic.List{Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo},System.Collections.Generic.List{Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo})">
+            <summary>
+            推断并添加与已找到表相关联的表
+            </summary>
+            <param name="sourceTables">已找到的相关表</param>
+            <param name="allTables">所有表列表</param>
+            <returns>包含关联表的扩展列表</returns>
+        </member>
         <member name="M:Text2Sql.Net.Domain.Service.ChatService.GenerateSqlQueryAsync(System.String,System.String,System.String)">
             <summary>
             根据用户问题和Schema信息生成SQL查询
@@ -735,6 +743,11 @@
             列信息
             </summary>
         </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo.ForeignKeys">
+            <summary>
+            外键关系
+            </summary>
+        </member>
         <member name="T:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ColumnInfo">
             <summary>
             数据库列信息
@@ -763,6 +776,36 @@
         <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ColumnInfo.Description">
             <summary>
             列描述
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ForeignKeyInfo">
+            <summary>
+            外键关系信息
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ForeignKeyInfo.ForeignKeyName">
+            <summary>
+            外键名称
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ForeignKeyInfo.ColumnName">
+            <summary>
+            外键列名
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ForeignKeyInfo.ReferencedTableName">
+            <summary>
+            引用的表名
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ForeignKeyInfo.ReferencedColumnName">
+            <summary>
+            引用的列名
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ForeignKeyInfo.RelationshipDescription">
+            <summary>
+            关系描述（一对多、一对一等）
             </summary>
         </member>
         <member name="T:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.DatabaseSchemaRepository">

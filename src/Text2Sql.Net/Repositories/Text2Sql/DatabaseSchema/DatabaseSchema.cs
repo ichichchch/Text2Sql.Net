@@ -58,6 +58,11 @@ namespace Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema
         /// 列信息
         /// </summary>
         public List<ColumnInfo> Columns { get; set; } = new List<ColumnInfo>();
+        
+        /// <summary>
+        /// 外键关系
+        /// </summary>
+        public List<ForeignKeyInfo> ForeignKeys { get; set; } = new List<ForeignKeyInfo>();
     }
 
     /// <summary>
@@ -89,5 +94,36 @@ namespace Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema
         /// 列描述
         /// </summary>
         public string Description { get; set; }
+    }
+
+    /// <summary>
+    /// 外键关系信息
+    /// </summary>
+    public class ForeignKeyInfo
+    {
+        /// <summary>
+        /// 外键名称
+        /// </summary>
+        public string ForeignKeyName { get; set; }
+        
+        /// <summary>
+        /// 外键列名
+        /// </summary>
+        public string ColumnName { get; set; }
+        
+        /// <summary>
+        /// 引用的表名
+        /// </summary>
+        public string ReferencedTableName { get; set; }
+        
+        /// <summary>
+        /// 引用的列名
+        /// </summary>
+        public string ReferencedColumnName { get; set; }
+        
+        /// <summary>
+        /// 关系描述（一对多、一对一等）
+        /// </summary>
+        public string RelationshipDescription { get; set; }
     }
 } 
