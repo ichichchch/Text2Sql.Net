@@ -4,6 +4,8 @@
 
 ![demo](https://github.com/AIDotNet/Text2Sql.Net/blob/main/doc/demo.png?raw=true)
 
+![demo1](https://github.com/AIDotNet/Text2Sql.Net/blob/main/doc/demo1.png?raw=true)
+
 This project supports SQL Server, MySQL, PostgreSQL and SQLite. Configuration example:
 
 ```json
