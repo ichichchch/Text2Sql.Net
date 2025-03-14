@@ -13,7 +13,7 @@ internal static class RepoFiles
     public static string SamplePluginsPath()
     {
         string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        string folderName = "graphPlugins";
+        string folderName = "text2sqlPlugins";
 
         string FindPluginsDirectory(string startDir, string targetFolder)
         {

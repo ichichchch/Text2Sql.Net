@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "description": "根据用户问题和Schema信息生成SQL查询",
+  "execution_settings": {
+    "default": {
+      "temperature": 0.1
+    }
+  }
+}

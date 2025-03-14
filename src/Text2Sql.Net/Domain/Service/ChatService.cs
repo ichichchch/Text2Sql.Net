@@ -1,6 +1,8 @@
+using Azure.AI.OpenAI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.SemanticKernel.Memory;
 using Microsoft.SemanticKernel.Plugins.Core;
 using Microsoft.SemanticKernel.Text;
@@ -248,19 +250,19 @@ namespace Text2Sql.Net.Domain.Service
         {
             try
             {
-                // 构建提示词
-                string prompt = $@"您是一个SQL专家，需要将用户的自然语言问题转换为SQL查询。
-请基于以下数据库表结构，生成一个有效的SQL查询来回答用户的问题。
+                OpenAIPromptExecutionSettings settings = new()
+                {
+                    Temperature = 0.1
+                };
+                KernelFunction generateSqlFun = _kernel.Plugins.GetFunction("text2sql", "generate_sql_query");
+                var args = new KernelArguments(settings)
+                {
+                    ["schemaInfo"] = schemaInfo,
+                    ["userMessage"] = userMessage
 
-数据库表结构：
-{schemaInfo}
-
-用户问题：{userMessage}
-
-请生成一个可执行的SQL查询语句，不需要解释。只返回SQL语句本身，不要包含任何其他格式标记，如```sql```。请确保SQL语法正确，适用于通用的SQL数据库。";
-
+                };
                 // 使用语义核心生成SQL
-                var result = await _kernel.InvokePromptAsync(prompt);
+                var result = await _kernel.InvokeAsync(generateSqlFun, args);
                 
                 // 提取生成的SQL
                 string sql = result?.ToString()?.Trim();
@@ -290,23 +292,23 @@ namespace Text2Sql.Net.Domain.Service
             try
             {
                 // 构建提示词
-                string prompt = $@"您是一个SQL优化专家，需要修复和优化一个有错误的SQL查询。
+                OpenAIPromptExecutionSettings settings = new()
+                {
+                    Temperature = 0.1
+                };
+                KernelFunction generateSqlFun = _kernel.Plugins.GetFunction("text2sql", "optimize_sql_query");
+                var args = new KernelArguments(settings)
+                {
+                    ["schemaInfo"] = schemaInfo,
+                    ["userMessage"] = userMessage,
+                    ["originalSql"] = originalSql,
+                    ["errorMessage"] = errorMessage
 
-数据库表结构：
-{schemaInfo}
+                };
+                // 使用语义核心生成SQL
+                var result = await _kernel.InvokeAsync(generateSqlFun, args);
 
-用户问题：{userMessage}
 
-原始SQL查询：
-{originalSql}
-
-执行错误信息：
-{errorMessage}
-
-请根据错误信息和数据库表结构修复并优化SQL查询。只返回优化后的SQL语句，不要包含任何其他格式标记，如```sql```。";
-
-                // 使用语义核心优化SQL
-                var result = await _kernel.InvokePromptAsync(prompt);
                 
                 // 提取优化后的SQL
                 string sql = result?.ToString()?.Trim();

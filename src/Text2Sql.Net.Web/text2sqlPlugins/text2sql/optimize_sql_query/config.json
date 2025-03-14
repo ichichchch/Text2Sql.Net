@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "description": "优化SQL查询",
+  "execution_settings": {
+    "default": {
+      "temperature": 0.1
+    }
+  }
+}

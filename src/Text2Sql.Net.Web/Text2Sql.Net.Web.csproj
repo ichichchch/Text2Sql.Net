@@ -22,6 +22,8 @@
 
   <ItemGroup>
     <Content Remove="Pages\DatabaseChat.razor" />
+    <Content Remove="text2sqlPlugins\text2sql\generate_sql_query\config.json" />
+    <Content Remove="text2sqlPlugins\text2sql\optimize_sql_query\config.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,7 +40,6 @@
 
   <ItemGroup>
     <Folder Include="Controllers\" />
-    <Folder Include="text2sqlPlugins\text2sql\" />
   </ItemGroup>
 
   <ItemGroup>
