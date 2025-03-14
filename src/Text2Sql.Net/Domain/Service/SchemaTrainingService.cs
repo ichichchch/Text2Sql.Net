@@ -89,43 +89,50 @@ namespace Text2Sql.Net.Domain.Service
                 // 为每个表创建向量嵌入（包含所有列信息）
                 foreach (var table in tables)
                 {
-                    // 构建包含所有列信息的表描述文本
-                    StringBuilder tableDescription = new StringBuilder();
-                    tableDescription.AppendLine($"表名: {table.TableName}");
-                    tableDescription.AppendLine($"描述: {table.Description ?? "无描述"}");
-
-                    // 添加外键关系信息
-                    if (table.ForeignKeys != null && table.ForeignKeys.Count > 0)
+                    try
                     {
-                        tableDescription.AppendLine("外键关系:");
-                        foreach (var fk in table.ForeignKeys)
+                        // 构建包含所有列信息的表描述文本
+                        StringBuilder tableDescription = new StringBuilder();
+                        tableDescription.AppendLine($"表名: {table.TableName}");
+                        tableDescription.AppendLine($"描述: {table.Description ?? "无描述"}");
+
+                        // 添加外键关系信息
+                        if (table.ForeignKeys != null && table.ForeignKeys.Count > 0)
                         {
-                            tableDescription.AppendLine($"  - {fk.RelationshipDescription}");
+                            tableDescription.AppendLine("外键关系:");
+                            foreach (var fk in table.ForeignKeys)
+                            {
+                                tableDescription.AppendLine($"  - {fk.RelationshipDescription}");
+                            }
                         }
+
+                        tableDescription.AppendLine("列信息:");
+
+                        foreach (var column in table.Columns)
+                        {
+                            tableDescription.AppendLine($"  - 列名: {column.ColumnName}, 类型: {column.DataType}, 主键: {(column.IsPrimaryKey ? "是" : "否")}, 可空: {(column.IsNullable ? "是" : "否")}, 描述: {column.Description ?? "无描述"}");
+                        }
+
+                        // 保存表的向量嵌入（包含所有列信息）
+                        var tableEmbedding = new SchemaEmbedding
+                        {
+                            ConnectionId = connectionId,
+                            TableName = table.TableName,
+                            Description = tableDescription.ToString(),
+                            EmbeddingType = EmbeddingType.Table
+                        };
+
+                        // 生成表的向量
+                        string tableId = $"{connectionId}_{table.TableName}";
+                        SemanticTextMemory textMemory = await _semanticService.GetTextMemory();
+
+                        // 添加到向量存储
+                        await textMemory.SaveInformationAsync(connectionId, id: tableId, text: JsonConvert.SerializeObject(tableEmbedding), cancellationToken: default);
                     }
-
-                    tableDescription.AppendLine("列信息:");
-
-                    foreach (var column in table.Columns)
+                    catch (Exception ex)
                     {
-                        tableDescription.AppendLine($"  - 列名: {column.ColumnName}, 类型: {column.DataType}, 主键: {(column.IsPrimaryKey ? "是" : "否")}, 可空: {(column.IsNullable ? "是" : "否")}, 描述: {column.Description ?? "无描述"}");
+                        _logger.LogError(ex, $"训练表{table.TableName}时出错：{ex.Message}");
                     }
-
-                    // 保存表的向量嵌入（包含所有列信息）
-                    var tableEmbedding = new SchemaEmbedding
-                    {
-                        ConnectionId = connectionId,
-                        TableName = table.TableName,
-                        Description = tableDescription.ToString(),
-                        EmbeddingType = EmbeddingType.Table
-                    };
-
-                    // 生成表的向量
-                    string tableId = $"{connectionId}_{table.TableName}";
-                    SemanticTextMemory textMemory = await _semanticService.GetTextMemory();
-       
-                    // 添加到向量存储
-                    await textMemory.SaveInformationAsync(connectionId, id: tableId, text: JsonConvert.SerializeObject(tableEmbedding), cancellationToken: default);
                 }
 
                 // 保存Schema信息到数据库
