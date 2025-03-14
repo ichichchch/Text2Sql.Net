@@ -28,7 +28,7 @@
 1. **数据库适配层**
    - 基于策略模式实现多数据库支持
    - 通过IDatabaseProvider接口定义标准操作
-   - 动态加载对应数据库驱动（System.Data.SQLite/Npgsql/MySqlConnector）
+   - 动态加载对应数据库驱动（SQLite/Postgres/MySql/SqlServer）
    - 自动生成数据库特定方言的SQL语句
 
 4. **向量数据库集成**
