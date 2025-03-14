@@ -64,11 +64,3 @@ flowchart TD
     G --> C
 ```
 
-
-## 配置参数说明
-| 参数 | 类型 | 说明 | 可选值 |
-|------|------|-----|-------|
-| ChatModel | string | 支持的GPT模型 | gpt-4o, gpt-4-turbo |
-| VectorSize | int | 向量维度 | PostgreSQL必须设置维度 |
-| DBConnection | string | 业务数据库连接字符串 | 标准连接字符串格式 |
-| MaxPoolSize | int | 连接池最大数量 | 默认20 |
