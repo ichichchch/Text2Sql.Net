@@ -31,7 +31,7 @@ namespace Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection
         /// <summary>
         /// 数据库服务器地址
         /// </summary>
-        public string? Server { get; set; }
+        public string? Server { get; set; } = "";
 
         /// <summary>
         /// 端口号

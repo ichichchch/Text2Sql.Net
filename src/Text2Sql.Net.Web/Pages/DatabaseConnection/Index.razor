@@ -24,26 +24,26 @@
     <ChildContent>
         <Spin Spinning="@_loading">
             <div class="card-list-container">
-                <Row Gutter="16">
+                <Row Gutter="24">
                     @foreach (var item in _dataList.Where(x => !string.IsNullOrEmpty(x.Id)))
                     {
-                        <AntDesign.Col Xs="24" Sm="12" Md="8" Lg="6" Xl="6" XXl="4">
+                        <AntDesign.Col Xs="24" Sm="12" Md="12" Lg="6" Xl="6" XXl="6">
                             <Card Hoverable Bordered Class="connection-card"
                                   Actions="@(new[] {
                                                 info(() => NavigateToDetails(item.Id)),
-                                                                                    update(() => NavigateToEdit(item.Id)),
-                                                                                    delete(() => DeleteConnection(item.Id))
-                                                                        })">
+                                                update(() => NavigateToEdit(item.Id)),
+                                                delete(() => DeleteConnection(item.Id))
+                                            })">
                             <CardMeta>
                                 <AvatarTemplate>
-                                    <Avatar Size="large" Icon="database" Style="background-color: #1890ff;" />
+                                        <Avatar Size="large" Icon="database" Style="background-color:#1890ff" />
                                 </AvatarTemplate>
                                 <TitleTemplate>
                                     <div class="card-title">@item.Name</div>
                                 </TitleTemplate>
                                 <DescriptionTemplate>
                                     <div class="card-description">
-                                        <Tag Color="blue">@item.DbType</Tag>
+                                        <Tag Color="@GetDbTypeColor(item.DbType)">@item.DbType</Tag>
                                         <div class="create-time">创建时间: @(item.CreateTime.ToString("yyyy-MM-dd"))</div>
                                     </div>
                                 </DescriptionTemplate>
@@ -73,9 +73,9 @@
     }
     
     .card-list-container {
-        padding: 16px;
+        padding: 24px;
         background-color: #f0f2f5;
-        border-radius: 4px;
+        border-radius: 8px;
         min-height: 300px;
     }
     
@@ -85,8 +85,9 @@
         height: 100%;
         display: flex;
         flex-direction: column;
-        margin-bottom: 16px;
+        margin-bottom: 24px;
         overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
     }
     
     .connection-card:hover {
@@ -105,7 +106,7 @@
     }
     
     .card-description {
-        margin-top: 8px;
+        margin-top: 12px;
     }
     
     .create-time {
@@ -191,5 +192,22 @@
         {
             await MessageService.Error($"删除失败: {ex.Message}");
         }
+    }
+    
+    private string GetDbTypeColor(string dbType)
+    {
+        return dbType?.ToLower() switch
+        {
+            "mysql" => "green",
+            "sqlserver" => "blue",
+            "oracle" => "red",
+            "postgresql" => "purple",
+            "sqlite" => "orange",
+            "dm" => "cyan",
+            "kingbasees" => "gold",
+            "clickhouse" => "volcano",
+            "opengauss" => "magenta",
+            _ => "geekblue"
+        };
     }
 } 
