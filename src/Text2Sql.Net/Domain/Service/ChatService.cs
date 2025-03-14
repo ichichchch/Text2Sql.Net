@@ -7,6 +7,7 @@ using Microsoft.SemanticKernel.Memory;
 using Microsoft.SemanticKernel.Plugins.Core;
 using Microsoft.SemanticKernel.Text;
 using Newtonsoft.Json;
+using SqlSugar;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -98,25 +99,44 @@ namespace Text2Sql.Net.Domain.Service
                     return CreateErrorResponse(connectionId, "无法生成SQL查询语句");
                 }
 
-                // 3. 执行SQL查询
-                var (result, errorMessage) = await _sqlExecutionService.ExecuteQueryAsync(connectionId, sqlQuery);
+                ChatMessage responseMessage=new ChatMessage();
 
-                // 4. 创建并保存响应消息
-                var responseMessage = new ChatMessage
+                var flag = await CheckSqlAsync(sqlQuery);
+                if (flag)
                 {
-                    Id = Guid.NewGuid().ToString(),
-                    ConnectionId = connectionId,
-                    Message = string.IsNullOrEmpty(errorMessage)
-                        ? $"根据您的问题，我生成并执行了以下SQL查询：\n\n{sqlQuery}\n\n查询结果包含 {result?.Count ?? 0} 条记录。"
-                        : $"我生成了以下SQL查询，但执行时出现错误：\n\n{sqlQuery}\n\n错误信息：{errorMessage}",
-                    IsUser = false,
-                    SqlQuery = sqlQuery,
-                    ExecutionError = errorMessage,
-                    QueryResult = result,
-                    CreateTime = DateTime.Now
-                };
 
-                await _chatRepository.InsertAsync(responseMessage);
+                    // 3. 执行SQL查询
+                    var (result, errorMessage) = await _sqlExecutionService.ExecuteQueryAsync(connectionId, sqlQuery);
+
+                    // 4. 创建并保存响应消息
+                    responseMessage = new ChatMessage
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        ConnectionId = connectionId,
+                        Message = string.IsNullOrEmpty(errorMessage)
+                            ? $"根据您的问题，我生成并执行了以下SQL查询：\n\n{sqlQuery}\n\n查询结果包含 {result?.Count ?? 0} 条记录。"
+                            : $"我生成了以下SQL查询，但执行时出现错误：\n\n{sqlQuery}\n\n错误信息：{errorMessage}",
+                        IsUser = false,
+                        SqlQuery = sqlQuery,
+                        ExecutionError = errorMessage,
+                        QueryResult = result,
+                        CreateTime = DateTime.Now
+                    };
+                }
+                else 
+                {
+                    responseMessage = new ChatMessage
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        ConnectionId = connectionId,
+                        Message ="由于安全控制仅支持查询语句自动执行，操作性语句需要手动执行",
+                        IsUser = false,
+                        SqlQuery = sqlQuery,
+                        QueryResult = new List<Dictionary<string, object>>(),
+                        CreateTime = DateTime.Now
+                    };
+                }
+                    await _chatRepository.InsertAsync(responseMessage);
                 return responseMessage;
             }
             catch (Exception ex)
@@ -413,6 +433,38 @@ namespace Text2Sql.Net.Domain.Service
             }
         }
 
+        private async Task<bool> CheckSqlAsync(string sql)
+        {
+            try
+            {
+                OpenAIPromptExecutionSettings settings = new()
+                {
+                    Temperature = 0.1
+                };
+                KernelFunction generateSqlFun = _kernel.Plugins.GetFunction("text2sql", "check_sql");
+                var args = new KernelArguments(settings)
+                {
+                    ["sql"] = sql
+
+                };
+                // 使用语义核心生成SQL
+                var result = await _kernel.InvokeAsync(generateSqlFun, args);
+
+                // 提取生成的SQL
+                string flag = result?.ToString()?.Trim();
+
+                // 简单清理，确保只返回SQL
+                sql = CleanSqlResult(sql);
+
+                return flag=="是";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"生成SQL查询时出错：{ex.Message}");
+                return false;
+            }
+        }
+
         /// <summary>
         /// 优化SQL查询
         /// </summary>
@@ -458,6 +510,8 @@ namespace Text2Sql.Net.Domain.Service
                 return string.Empty;
             }
         }
+
+
 
         /// <summary>
         /// 清理SQL查询结果字符串

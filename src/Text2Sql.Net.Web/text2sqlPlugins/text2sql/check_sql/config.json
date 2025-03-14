@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "description": "检查sql是否查询语句",
+  "execution_settings": {
+    "default": {
+      "temperature": 0.1
+    }
+  }
+}

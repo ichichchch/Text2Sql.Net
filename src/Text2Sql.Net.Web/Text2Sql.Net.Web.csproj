@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <Content Remove="Pages\DatabaseChat.razor" />
+    <Content Remove="text2sqlPlugins\text2sql\check_sql\config.json" />
     <Content Remove="text2sqlPlugins\text2sql\generate_sql_query\config.json" />
     <Content Remove="text2sqlPlugins\text2sql\optimize_sql_query\config.json" />
   </ItemGroup>
