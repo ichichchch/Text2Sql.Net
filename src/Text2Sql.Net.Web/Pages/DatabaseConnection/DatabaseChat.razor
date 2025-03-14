@@ -72,6 +72,12 @@
                                                     <Button Type="@ButtonType.Link" OnClick="async () => await ExecuteSqlAsync(context.SqlQuery)">
                                                         <Icon Type="play-circle" /> 执行
                                                     </Button>
+                                                    @if (_sqlResult != null && context.SqlQuery == _lastExecutedSql)
+                                                    {
+                                                        <Button Type="@ButtonType.Link" OnClick="@(() => _isResultModalVisible = true)">
+                                                            <Icon Type="table" /> 查看结果
+                                                        </Button>
+                                                    }
                                                 </div>
                                                 @if (!string.IsNullOrEmpty(context.ExecutionError))
                                                 {
@@ -90,55 +96,6 @@
                         <Empty Description=@("暂无聊天记录") />
                     }
                 </div>
-
-                @if (_sqlResult != null)
-                {
-                    <div class="sql-result-container @(_isResultCollapsed ? "collapsed" : "")">
-                        <div class="toggle-container">
-                            <Button Type="@ButtonType.Link" 
-                                    OnClick="@(() => _isResultCollapsed = !_isResultCollapsed)"
-                                    Class="toggle-button">
-                                <Icon Type="@(_isResultCollapsed ? "down" : "up")" />
-                                @(_isResultCollapsed ? "展开查询结果" : "折叠查询结果")
-                            </Button>
-                            @if (!_isResultCollapsed)
-                            {
-                                <Button Type="@ButtonType.Link"
-                                        OnClick="@(() => _sqlResult = null)"
-                                        Icon="close-circle">
-                                    关闭结果
-                                </Button>
-                            }
-                        </div>
-
-                        @if (!_isResultCollapsed)
-                        {
-                            <Divider Orientation="left">
-                                <Space>
-                                    <SpaceItem>查询结果</SpaceItem>
-                                    <SpaceItem>
-                                        <Tag Color="blue">@(_sqlResult.Count) 条记录</Tag>
-                                    </SpaceItem>
-                                </Space>
-                            </Divider>
-
-                            <Table TItem="Dictionary<string, object>"
-                                   DataSource="@_sqlResult"
-                                   Loading="@_loading"
-                                   Bordered
-                                   Size="@TableSize.Small"
-                                   ScrollX="1000"
-                                   ScrollY="300">
-                                @foreach (var column in _sqlColumns)
-                                {
-                                    <AntDesign.Column TData="Dictionary<string, object>" Title="@column">
-                                        @context[column]
-                                    </AntDesign.Column>
-                                }
-                            </Table>
-                        }
-                    </div>
-                }
 
                 <div class="chat-input-container">
                     <TextArea @bind-Value="@_userMessage"
@@ -168,11 +125,51 @@
     </Content>
 </PageContainer>
 
+<Modal Title="查询结果"
+       Visible="@_isResultModalVisible"
+       OnOk="@(() => _isResultModalVisible = false)"
+       OnCancel="@(() => _isResultModalVisible = false)"
+       Style="width:80%"
+       Centered>
+    <div class="sql-result-modal">
+        @if (_sqlResult != null)
+        {
+            <div class="result-info">
+                <Space>
+                    <SpaceItem>查询结果</SpaceItem>
+                    <SpaceItem>
+                        <Tag Color="blue">@(_sqlResult.Count) 条记录</Tag>
+                    </SpaceItem>
+                </Space>
+            </div>
+            
+            <Table TItem="Dictionary<string, object>"
+                   DataSource="@_sqlResult"
+                   Loading="@_loading"
+                   Bordered
+                   Size="@TableSize.Small"
+                   ScrollX="1000"
+                   ScrollY="500">
+                @foreach (var column in _sqlColumns)
+                {
+                    <AntDesign.Column TData="Dictionary<string, object>" Title="@column">
+                        @context[column]
+                    </AntDesign.Column>
+                }
+            </Table>
+        }
+        else
+        {
+            <Empty Description="@("无数据")" />
+        }
+    </div>
+</Modal>
+
 <style>
     .database-chat-container {
         display: flex;
         flex-direction: column;
-        height: calc(100vh - 200px);
+        height: 900px;
         gap: 16px;
         position: relative;
     }
@@ -327,6 +324,15 @@
         margin-bottom: 8px;
     }
 
+    .sql-result-modal {
+        width: 100%;
+        padding: 0;
+    }
+    
+    .result-info {
+        margin-bottom: 16px;
+    }
+
     .loading-hint {
         margin-top: 8px;
         font-size: 12px;
@@ -367,7 +373,8 @@
     private List<string> _sqlColumns = new List<string>();
     private ElementReference _chatContainerRef;
     private bool _isChatCollapsed = false;
-    private bool _isResultCollapsed = false;
+    private bool _isResultModalVisible = false;
+    private string _lastExecutedSql;
 
     protected override async Task OnInitializedAsync()
     {
@@ -375,7 +382,7 @@
         _loading = false;
         _loadingHistory = false;
         _isChatCollapsed = false;
-        _isResultCollapsed = false;
+        _isResultModalVisible = false;
 
         try
         {
@@ -414,7 +421,7 @@
             _sqlResult = null;
             _sqlColumns.Clear();
             _isChatCollapsed = false;
-            _isResultCollapsed = false;
+            _isResultModalVisible = false;
 
             try
             {
@@ -507,8 +514,8 @@
             {
                 _sqlResult = response.QueryResult;
                 _sqlColumns = response.QueryResult.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
-                // 确保查询结果可见
-                _isResultCollapsed = false;
+                _lastExecutedSql = response.SqlQuery; // 记录SQL
+                // 不自动弹出结果框，等用户点击查看结果按钮
             }
         }
         catch (Exception ex)
@@ -548,7 +555,6 @@
         {
             _loading = true;
 
-
             var (result, errorMessage) = await SqlExecutionService.ExecuteQueryAsync(_selectedConnectionId, sql);
 
             if (!string.IsNullOrEmpty(errorMessage))
@@ -559,7 +565,8 @@
             {
                 _sqlResult = result;
                 _sqlColumns = result.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
-                _isResultCollapsed = false; // 确保结果可见
+                _lastExecutedSql = sql; // 记录最后执行的SQL
+                _isResultModalVisible = true; // 自动显示结果模态框
                 await MessageService.Success($"SQL执行成功，返回 {result.Count} 条记录");
             }
             else
