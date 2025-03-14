@@ -89,9 +89,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     .Build();
                 }
                 //导入插件
-                if (!_kernel.Plugins.Any(p => p.Name == "graph"))
+                if (!_kernel.Plugins.Any(p => p.Name == "text2sql"))
                 {
-                    var pluginPatth = Path.Combine(RepoFiles.SamplePluginsPath(), "graph");
+                    var pluginPatth = Path.Combine(RepoFiles.SamplePluginsPath(), "text2sql");
                     Console.WriteLine($"pluginPatth:{pluginPatth}");
                     _kernel.ImportPluginFromPromptDirectory(pluginPatth);
                 }
