@@ -86,9 +86,8 @@ namespace Text2Sql.Net.Domain.Service
             }
         }
 
-        /// <summary>
-        /// 获取SqlSugar数据库类型
-        /// </summary>
+        /// <param name="dbTypeStr">数据库类型字符串</param>
+        /// <returns>对应的SqlSugar数据库类型</returns>
         private DbType GetDbType(string dbTypeStr)
         {
             return dbTypeStr.ToLower() switch
@@ -102,4 +101,4 @@ namespace Text2Sql.Net.Domain.Service
             };
         }
     }
-} 
+}

@@ -16,6 +16,9 @@ using Text2Sql.Net.Utils;
 
 namespace Text2Sql.Net.Domain.Service
 {
+    /// <summary>
+    /// 语义服务实现
+    /// </summary>
     [ServiceDescription(typeof(ISemanticService), ServiceLifetime.Scoped)]
     public class SemanticService(Kernel _kernel) : ISemanticService
     {

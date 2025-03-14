@@ -176,10 +176,10 @@
         </member>
         <member name="M:Text2Sql.Net.Domain.Service.ChatService.CleanSqlResult(System.String)">
             <summary>
-            清理SQL结果，移除可能的标记
+            清理SQL查询结果字符串
             </summary>
-            <param name="sql">原始SQL</param>
-            <returns>清理后的SQL</returns>
+            <param name="sql">原始SQL字符串</param>
+            <returns>清理后的SQL字符串</returns>
         </member>
         <member name="M:Text2Sql.Net.Domain.Service.ChatService.CreateErrorResponse(System.String,System.String)">
             <summary>
@@ -215,7 +215,7 @@
         </member>
         <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.SqliteEscapeIdentifier(System.String)">
             <summary>
-            转义SQLite标识符
+            SQLite标识符转义处理
             </summary>
             <param name="identifier">需要转义的标识符</param>
             <returns>转义后的标识符</returns>
@@ -230,6 +230,16 @@
         <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.GetDbType(System.String)">
             <summary>
             获取SqlSugar数据库类型
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.SemanticService">
+            <summary>
+            语义服务实现
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SemanticService.#ctor(Microsoft.SemanticKernel.Kernel)">
+            <summary>
+            语义服务实现
             </summary>
         </member>
         <member name="M:Text2Sql.Net.Domain.Service.SemanticService.GetTextMemory">
@@ -253,9 +263,8 @@
             <inheritdoc/>
         </member>
         <member name="M:Text2Sql.Net.Domain.Service.SqlExecutionService.GetDbType(System.String)">
-            <summary>
-            获取SqlSugar数据库类型
-            </summary>
+            <param name="dbTypeStr">数据库类型字符串</param>
+            <returns>对应的SqlSugar数据库类型</returns>
         </member>
         <member name="P:Text2Sql.Net.Model.PageList`1.PageIndex">
             <summary>

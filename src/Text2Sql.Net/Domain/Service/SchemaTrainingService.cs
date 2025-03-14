@@ -783,7 +783,7 @@ namespace Text2Sql.Net.Domain.Service
         }
 
         /// <summary>
-        /// 转义SQLite标识符
+        /// SQLite标识符转义处理
         /// </summary>
         /// <param name="identifier">需要转义的标识符</param>
         /// <returns>转义后的标识符</returns>
@@ -849,4 +849,4 @@ namespace Text2Sql.Net.Domain.Service
             };
         }
     }
-} 
+}

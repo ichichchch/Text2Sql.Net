@@ -383,6 +383,10 @@
         await base.OnInitializedAsync();
     }
 
+    /// <summary>
+    /// 加载数据库连接列表
+    /// </summary>
+    /// <returns>异步任务</returns>
     private async Task LoadDatabaseConnections()
     {
         try
@@ -397,6 +401,11 @@
         }
     }
 
+    /// <summary>
+    /// 处理数据库选择事件
+    /// </summary>
+    /// <param name="connection">选中的数据库连接配置</param>
+    /// <returns>异步任务</returns>
     private async Task OnDatabaseSelected(DatabaseConnectionConfig connection)
     {
         if (connection == null) return;
@@ -432,6 +441,10 @@
         }
     }
 
+    /// <summary>
+    /// 发送用户消息并获取AI响应
+    /// </summary>
+    /// <returns>异步任务</returns>
     private async Task SendMessage()
     {
         if (string.IsNullOrWhiteSpace(_userMessage) || _selectedConnectionId == null)
@@ -523,10 +536,14 @@
         finally
         {
             _loading = false;
-
         }
     }
 
+    /// <summary>
+    /// 执行SQL查询并显示结果
+    /// </summary>
+    /// <param name="sql">要执行的SQL查询语句</param>
+    /// <returns>异步任务</returns>
     private async Task ExecuteSqlAsync(string sql)
     {
         if (string.IsNullOrWhiteSpace(sql) || _selectedConnectionId == null)
@@ -571,6 +588,9 @@
         }
     }
 
+    /// <summary>
+    /// 重置所有加载状态
+    /// </summary>
     public void ResetLoadingStates()
     {
         _loading = false;
@@ -578,6 +598,11 @@
         StateHasChanged();
     }
 
+    /// <summary>
+    /// 将SQL复制到剪贴板
+    /// </summary>
+    /// <param name="sql">要复制的SQL语句</param>
+    /// <returns>异步任务</returns>
     private async Task CopySqlToClipboard(string sql)
     {
         if (string.IsNullOrEmpty(sql)) return;

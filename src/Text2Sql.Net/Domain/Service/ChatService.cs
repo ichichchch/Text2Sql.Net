@@ -460,10 +460,10 @@ namespace Text2Sql.Net.Domain.Service
         }
 
         /// <summary>
-        /// 清理SQL结果，移除可能的标记
+        /// 清理SQL查询结果字符串
         /// </summary>
-        /// <param name="sql">原始SQL</param>
-        /// <returns>清理后的SQL</returns>
+        /// <param name="sql">原始SQL字符串</param>
+        /// <returns>清理后的SQL字符串</returns>
         private string CleanSqlResult(string sql)
         {
             if (string.IsNullOrEmpty(sql))
@@ -499,4 +499,4 @@ namespace Text2Sql.Net.Domain.Service
             };
         }
     }
-} 
+}

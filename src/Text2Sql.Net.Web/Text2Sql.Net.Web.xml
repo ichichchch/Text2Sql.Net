@@ -4,5 +4,74 @@
         <name>Text2Sql.Net.Web</name>
     </assembly>
     <members>
+        <member name="M:Text2Sql.Net.Web.Components.RightContent.SetClassMap">
+            <summary>
+            设置组件的CSS类映射
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Components.RightContent.HandleSelectUser(AntDesign.MenuItem)">
+            <summary>
+            处理用户菜单项选择事件
+            </summary>
+            <param name="item">选中的菜单项</param>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Components.RightContent.HandleSelectLang(AntDesign.MenuItem)">
+            <summary>
+            处理语言选择菜单项事件
+            </summary>
+            <param name="item">选中的语言菜单项</param>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Components.RightContent.HandleClear(System.String)">
+            <summary>
+            处理清空通知、消息或事件列表的事件
+            </summary>
+            <param name="key">要清空的项目类型（notification/message/event）</param>
+            <returns>异步任务</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Components.RightContent.HandleViewMore(System.String)">
+            <summary>
+            处理查看更多的事件
+            </summary>
+            <param name="key">要查看更多的项目类型</param>
+            <returns>异步任务</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.LoadDatabaseConnections">
+            <summary>
+            加载数据库连接列表
+            </summary>
+            <returns>异步任务</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.OnDatabaseSelected(Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig)">
+            <summary>
+            处理数据库选择事件
+            </summary>
+            <param name="connection">选中的数据库连接配置</param>
+            <returns>异步任务</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.SendMessage">
+            <summary>
+            发送用户消息并获取AI响应
+            </summary>
+            <returns>异步任务</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.ExecuteSqlAsync(System.String)">
+            <summary>
+            执行SQL查询并显示结果
+            </summary>
+            <param name="sql">要执行的SQL查询语句</param>
+            <returns>异步任务</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.ResetLoadingStates">
+            <summary>
+            重置所有加载状态
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.CopySqlToClipboard(System.String)">
+            <summary>
+            将SQL复制到剪贴板
+            </summary>
+            <param name="sql">要复制的SQL语句</param>
+            <returns>异步任务</returns>
+        </member>
     </members>
 </doc>

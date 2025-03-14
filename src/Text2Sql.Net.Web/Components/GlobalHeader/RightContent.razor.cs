@@ -51,6 +51,9 @@ namespace Text2Sql.Net.Web.Components
 
         }
 
+        /// <summary>
+        /// 设置组件的CSS类映射
+        /// </summary>
         protected void SetClassMap()
         {
             ClassMapper
@@ -58,6 +61,10 @@ namespace Text2Sql.Net.Web.Components
                 .Add("right");
         }
 
+        /// <summary>
+        /// 处理用户菜单项选择事件
+        /// </summary>
+        /// <param name="item">选中的菜单项</param>
         public void HandleSelectUser(MenuItem item)
         {
             switch (item.Key)
@@ -74,10 +81,19 @@ namespace Text2Sql.Net.Web.Components
             }
         }
 
+        /// <summary>
+        /// 处理语言选择菜单项事件
+        /// </summary>
+        /// <param name="item">选中的语言菜单项</param>
         public void HandleSelectLang(MenuItem item)
         {
         }
 
+        /// <summary>
+        /// 处理清空通知、消息或事件列表的事件
+        /// </summary>
+        /// <param name="key">要清空的项目类型（notification/message/event）</param>
+        /// <returns>异步任务</returns>
         public async Task HandleClear(string key)
         {
             switch (key)
@@ -95,6 +111,11 @@ namespace Text2Sql.Net.Web.Components
             await MessageService.Success($"清空了{key}");
         }
 
+        /// <summary>
+        /// 处理查看更多的事件
+        /// </summary>
+        /// <param name="key">要查看更多的项目类型</param>
+        /// <returns>异步任务</returns>
         public async Task HandleViewMore(string key)
         {
             await MessageService.Info("Click on view more");
