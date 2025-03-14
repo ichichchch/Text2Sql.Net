@@ -1,10 +1,143 @@
 ﻿@namespace Text2Sql.Net.Web.Pages
 @page "/"
 
-<h3>这是一个Text2Sql的dotnet简易实现</h3>
-<h3>您可以配置多种数据库进行问答查数 </h3>
-<h3>可以添加我的微信:xuzeyu91加入我们的交流群 </h3>
-<h3></h3>
-@code {
+@inject NavigationManager NavigationManager
 
+<div class="home-container">
+    <div class="hero-section">
+        <Icon Type="database" Theme="filled" Style="font-size: 64px; color: #1890ff; margin-bottom: 24px;" />
+        <h1 class="title">Text2Sql.Net</h1>
+        <h2 class="subtitle">自然语言转SQL查询工具</h2>
+
+        <div class="description">
+            <p>这是一个Text2Sql的dotnet简易实现，您可以配置多种数据库进行问答查数。</p>
+        </div>
+
+        <div class="action-buttons">
+            <Button Type="primary" Size="large" OnClick="GotoDataBase">
+                <Icon Type="database" /> 开始配置数据库
+            </Button>
+
+            <Button Type="default" Size="large" OnClick="GotoDocs">
+                <Icon Type="read" /> 查看文档
+            </Button>
+        </div>
+
+        <div class="contact-info">
+            <p>可以添加我的微信: <Tag Color="green">xuzeyu91</Tag> 加入我们的交流群</p>
+        </div>
+
+        <div class="features">
+            <Row>
+                <AntDesign.Col Span="8">
+                    <Card Class="feature-card">
+                        <Icon Type="thunderbolt" Theme="filled" Style="font-size: 32px; color: #1890ff;" />
+                        <h3>高效转换</h3>
+                        <p>快速将自然语言转换为SQL查询语句</p>
+                    </Card>
+                </AntDesign.Col>
+                <AntDesign.Col Span="8">
+                    <Card Class="feature-card">
+                        <Icon Type="database" Theme="filled" Style="font-size: 32px; color: #1890ff;" />
+                        <h3>多数据库支持</h3>
+                        <p>支持各种主流数据库系统</p>
+                    </Card>
+                </AntDesign.Col>
+                <AntDesign.Col Span="8">
+                    <Card Class="feature-card">
+                        <Icon Type="code" Theme="filled" Style="font-size: 32px; color: #1890ff;" />
+                        <h3>简单易用</h3>
+                        <p>无需编写复杂代码，一键查询数据</p>
+                    </Card>
+                </AntDesign.Col>
+            </Row>
+        </div>
+    </div>
+</div>
+
+<style>
+    .home-container {
+    padding: 48px 24px;
+    text-align: center;
+    }
+
+    .hero-section {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    }
+
+    .title {
+    font-size: 42px;
+    font-weight: bold;
+    margin-bottom: 12px;
+    color: #1890ff;
+    }
+
+    .subtitle {
+    font-size: 24px;
+    color: #5c5c5c;
+    margin-bottom: 24px;
+    }
+
+    .description {
+    font-size: 18px;
+    max-width: 600px;
+    margin-bottom: 32px;
+    }
+
+    .action-buttons {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 48px;
+    }
+
+    .contact-info {
+    margin-bottom: 48px;
+    padding: 16px;
+    background-color: #f7f7f7;
+    border-radius: 8px;
+    }
+
+    .features {
+    width: 100%;
+    margin-top: 48px;
+    }
+
+    .feature-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+    transition: all 0.3s;
+    }
+
+    .feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .feature-card h3 {
+    margin: 16px 0 8px;
+    color: #333;
+    }
+
+    .feature-card p {
+    color: #666;
+    }
+</style>
+
+@code {
+    private void GotoDocs()
+    {
+        NavigationManager.NavigateTo("/docs");
+    }
+
+    private void GotoDataBase()
+    {
+        NavigationManager.NavigateTo("/database-connection");
+    }
 }

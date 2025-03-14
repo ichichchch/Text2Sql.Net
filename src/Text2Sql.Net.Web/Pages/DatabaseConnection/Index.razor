@@ -8,60 +8,112 @@
 @inject NavigationManager NavigationManager
 
 <PageContainer Title="数据库连接管理">
+    <Extra>
+        <Button Type="primary" Icon="plus" @onclick="NavigateToCreate">
+            创建连接
+        </Button>
+    </Extra>
     <Content>
-        <div style="text-align: center;">
-            <Search Placeholder="输入回车"
+        <div class="search-container">
+            <Search Placeholder="请输入连接名称"
                     EnterButton="@("搜索")"
                     Style="max-width: 522px; width: 100%;"
                     OnSearch="Search" />
         </div>
     </Content>
-    <ChildContent >
-             <div class="cardList">
-            <AntList TItem="DatabaseConnectionConfig"
-                     DataSource="_dataList"
-                     ItemLayout="ListItemLayout.Horizontal"
-                     Grid="LayoutModel._listGridType">
-                <ListItem NoFlex>
-                    @if (string.IsNullOrEmpty(context.Id))
+    <ChildContent>
+        <Spin Spinning="@_loading">
+            <div class="card-list-container">
+                <Row Gutter="16">
+                    @foreach (var item in _dataList.Where(x => !string.IsNullOrEmpty(x.Id)))
                     {
-                        <Button Type="dashed" class="newButton" @onclick="NavigateToCreate">
-                                    <Icon Type="plus" Theme="outline" /> 创建应用
-                                </Button>
+                        <AntDesign.Col Xs="24" Sm="12" Md="8" Lg="6" Xl="6" XXl="4">
+                            <Card Hoverable Bordered Class="connection-card"
+                                  Actions="@(new[] {
+                                                info(() => NavigateToDetails(item.Id)),
+                                                                                    update(() => NavigateToEdit(item.Id)),
+                                                                                    delete(() => DeleteConnection(item.Id))
+                                                                        })">
+                            <CardMeta>
+                                <AvatarTemplate>
+                                    <Avatar Size="large" Icon="database" Style="background-color: #1890ff;" />
+                                </AvatarTemplate>
+                                <TitleTemplate>
+                                    <div class="card-title">@item.Name</div>
+                                </TitleTemplate>
+                                <DescriptionTemplate>
+                                    <div class="card-description">
+                                        <Tag Color="blue">@item.DbType</Tag>
+                                        <div class="create-time">创建时间: @(item.CreateTime.ToString("yyyy-MM-dd"))</div>
+                                    </div>
+                                </DescriptionTemplate>
+                            </CardMeta>
+                        </Card>
+                    </AntDesign.Col>
                     }
-                    else
-                    {
-                <Card Hoverable Bordered Class="card" Actions="@(new[] {
-                            info(()=>NavigateToDetails(context.Id)),
-                            update(()=>  NavigateToEdit(context.Id)),
-                            delete(()=> DeleteConnection(context.Id)) ,
-
-                             })" Style="max-height:300px;">
-
-                                   <CardMeta>
-                                    <AvatarTemplate>
-                                    <Icon Type="database" Theme="outline" />
-                                    </AvatarTemplate>
-                                    <TitleTemplate>
-                                        <a>@context.Name</a>
-                                    </TitleTemplate>
-                                    <DescriptionTemplate>
-                                          <Paragraph class="item" Ellipsis>
-                                            <!--todo: Ellipsis not working-->
-                                            <Tooltip Title="@context.DbType" Placement="@Placement.TopLeft">
-                                            @context.DbType
-                                            </Tooltip>
-                                        </Paragraph></DescriptionTemplate>
-                                </CardMeta>
-
-
-                                </Card>
-                    }
-                </ListItem>
-            </AntList>
-        </div>
+                </Row>
+                
+                @if (!_dataList.Any() || _dataList.Count == 1 && string.IsNullOrEmpty(_dataList[0].Id))
+                {
+                    <Empty Description="@("暂无数据连接")">
+                        <Button Type="primary" Icon="plus" @onclick="NavigateToCreate">
+                            创建连接
+                        </Button>
+                    </Empty>
+                }
+            </div>
+        </Spin>
     </ChildContent>
 </PageContainer>
+
+<style>
+    .search-container {
+        text-align: center;
+        margin-bottom: 24px;
+    }
+    
+    .card-list-container {
+        padding: 16px;
+        background-color: #f0f2f5;
+        border-radius: 4px;
+        min-height: 300px;
+    }
+    
+    .connection-card {
+        border-radius: 8px;
+        transition: all 0.3s;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 16px;
+        overflow: hidden;
+    }
+    
+    .connection-card:hover {
+        box-shadow: 0 8px 16px rgba(24, 144, 255, 0.2);
+        transform: translateY(-4px);
+        border-color: #1890ff;
+    }
+    
+    .card-title {
+        font-size: 16px;
+        font-weight: 500;
+        color: rgba(0, 0, 0, 0.85);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .card-description {
+        margin-top: 8px;
+    }
+    
+    .create-time {
+        margin-top: 8px;
+        font-size: 12px;
+        color: rgba(0, 0, 0, 0.45);
+    }
+</style>
 
 @code {
     RenderFragment info(Action clickAction) =>@<a key="info" @onclick="@clickAction">查看</a>;
@@ -83,12 +135,10 @@
         _loading = true;
         try
         {
-            var list = new List<DatabaseConnectionConfig> { new DatabaseConnectionConfig() { CreateTime = DateTime.MaxValue } };
             var exp = Expressionable.Create<DatabaseConnectionConfig>();
             exp.AndIF(!string.IsNullOrEmpty(searchKey), p => p.Name.Contains(searchKey));
             var data = await DatabaseConnectionConfigRepository.GetListAsync(exp.ToExpression());
-            list.AddRange(data);
-            _dataList = list.OrderByDescending(x => x.CreateTime).ToList();
+            _dataList = data.OrderByDescending(x => x.CreateTime).ToList();
             _total = _dataList.Count;
         }
         catch (Exception ex)
