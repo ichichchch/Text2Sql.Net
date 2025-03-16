@@ -38,7 +38,4 @@
     <PackageReference Include="Polly" Version="8.5.0" />
     <PackageReference Include="SqlSugarCore" Version="5.1.4.171" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Pages\" />
-  </ItemGroup>
 </Project>
