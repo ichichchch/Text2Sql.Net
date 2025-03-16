@@ -456,7 +456,7 @@ namespace Text2Sql.Net.Domain.Service
                 // 简单清理，确保只返回SQL
                 sql = CleanSqlResult(sql);
 
-                return flag=="是";
+                return flag=="1";
             }
             catch (Exception ex)
             {
