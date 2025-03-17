@@ -17,10 +17,6 @@
             <Button Type="primary" Size="large" OnClick="GotoDataBase">
                 <Icon Type="database" /> 开始配置数据库
             </Button>
-
-            <Button Type="default" Size="large" OnClick="GotoDocs">
-                <Icon Type="read" /> 查看文档
-            </Button>
         </div>
 
         <div class="contact-info">
@@ -131,10 +127,6 @@
 </style>
 
 @code {
-    private void GotoDocs()
-    {
-        NavigationManager.NavigateTo("/docs");
-    }
 
     private void GotoDataBase()
     {
