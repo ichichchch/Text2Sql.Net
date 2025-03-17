@@ -2,6 +2,12 @@
 
 ## 这是一个Text2Sql的dotnet简易实现
 
+![index](https://github.com/AIDotNet/Text2Sql.Net/blob/main/doc/index.png?raw=true)
+
+![db](https://github.com/AIDotNet/Text2Sql.Net/blob/main/doc/db.png?raw=true)
+
+![schecm](https://github.com/AIDotNet/Text2Sql.Net/blob/main/doc/schecm.png?raw=true)
+
 ![demo](https://github.com/AIDotNet/Text2Sql.Net/blob/main/doc/demo.png?raw=true)
 
 ![demo1](https://github.com/AIDotNet/Text2Sql.Net/blob/main/doc/demo1.png?raw=true)
