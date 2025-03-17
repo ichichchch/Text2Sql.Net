@@ -139,7 +139,7 @@
             if (success)
             {
                 await MessageService.Success("保存成功");
-                NavigateToList();
+                NavigateToList(_model.Id);
             }
             else
             {
@@ -161,8 +161,8 @@
         MessageService.Error("表单验证失败，请检查输入");
     }
 
-    private void NavigateToList()
+    private void NavigateToList(string id)
     {
-        NavigationManager.NavigateTo("/database-connection");
+        NavigationManager.NavigateTo("/database-connection/details/"+id);
     }
 } 
