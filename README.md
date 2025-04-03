@@ -1,6 +1,18 @@
 简体中文 | [English](./README.en.md) 
 
-## 这是一个Text2Sql的dotnet简易实现
+## Text2Sql.Net - 自然语言转SQL的.NET实现
+
+### 项目背景
+Text2Sql.Net是一个基于.NET平台的自然语言转SQL工具，旨在帮助开发者和数据分析师通过简单的自然语言描述快速生成数据库查询语句。项目结合了大型语言模型(LLM)和传统SQL解析技术，支持多种主流数据库。
+
+### 核心功能
+- 自然语言转SQL：输入日常语言描述，自动生成对应的SQL查询语句
+- 多数据库支持：兼容SQL Server、MySQL、PostgreSQL和SQLite
+- 智能上下文理解：基于聊天历史理解用户查询意图
+- 向量搜索集成：支持基于语义的相似度搜索
+- 语法校验：自动检查生成的SQL语法正确性
+
+## 技术架构
 
 ![index](https://github.com/AIDotNet/Text2Sql.Net/blob/main/doc/index.png?raw=true)
 
@@ -38,12 +50,6 @@
    - 通过IDatabaseProvider接口定义标准操作
    - 动态加载对应数据库驱动（SQLite/Postgres/MySql/SqlServer）
    - 自动生成数据库特定方言的SQL语句
-
- **向量数据库集成**
-   - 基于SQLite的内存数据库实现向量快速检索
-   - PostgreSQL使用pgvector扩展支持向量类型
-   - 统一向量存储接口IVectorRepository
-   - 支持余弦相似度/欧式距离计算
 
 ## 核心处理流程
 ```mermaid
