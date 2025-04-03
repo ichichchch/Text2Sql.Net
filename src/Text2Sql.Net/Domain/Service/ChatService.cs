@@ -114,8 +114,8 @@ namespace Text2Sql.Net.Domain.Service
                         Id = Guid.NewGuid().ToString(),
                         ConnectionId = connectionId,
                         Message = string.IsNullOrEmpty(errorMessage)
-                            ? $"根据您的问题，我生成并执行了以下SQL查询：\n\n{sqlQuery}\n\n查询结果包含 {result?.Count ?? 0} 条记录。"
-                            : $"我生成了以下SQL查询，但执行时出现错误：\n\n{sqlQuery}\n\n错误信息：{errorMessage}",
+                            ? $"根据您的问题，我生成并执行了以下SQL查询：\n\n查询结果包含 {result?.Count ?? 0} 条记录。"
+                            : $"我生成了以下SQL查询，但执行时出现错误：\n\n错误信息：{errorMessage}",
                         IsUser = false,
                         SqlQuery = sqlQuery,
                         ExecutionError = errorMessage,
@@ -174,8 +174,8 @@ namespace Text2Sql.Net.Domain.Service
                     Id = Guid.NewGuid().ToString(),
                     ConnectionId = connectionId,
                     Message = string.IsNullOrEmpty(newErrorMessage)
-                        ? $"原始SQL执行失败，我已优化SQL查询：\n\n{optimizedSql}\n\n查询结果包含 {result?.Count ?? 0} 条记录。"
-                        : $"我尝试优化SQL查询，但仍然存在错误：\n\n{optimizedSql}\n\n错误信息：{newErrorMessage}",
+                        ? $"原始SQL执行失败，我已优化SQL查询：\n\n查询结果包含 {result?.Count ?? 0} 条记录。"
+                        : $"我尝试优化SQL查询，但仍然存在错误：\n\n错误信息：{newErrorMessage}",
                     IsUser = false,
                     SqlQuery = optimizedSql,
                     ExecutionError = newErrorMessage,
