@@ -36,6 +36,7 @@ builder.Services.AddSwaggerGen(c => {
 builder.Configuration.GetSection("Text2SqlOpenAI").Get<Text2SqlOpenAIOption>();
 builder.Configuration.GetSection("Text2SqlConnection").Get<Text2SqlConnectionOption>();
 
+//可是传入自定义Kernel，如果不传则使用默认Kernel
 builder.Services.AddText2SqlNet();
 
 
