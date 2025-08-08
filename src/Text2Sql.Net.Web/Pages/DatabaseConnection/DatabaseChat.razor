@@ -68,6 +68,9 @@
                                                     <Button Type="@ButtonType.Link" OnClick="@(() => _isResultModalVisible = true)">
                                                         <Icon Type="table" /> 查看结果
                                                     </Button>
+                                                     <Button Type="@ButtonType.Link" OnClick="@ShowChartAsync">
+                                                         查看图表
+                                                     </Button>
                                                 }
                                             </div>
                                             @if (!string.IsNullOrEmpty(context.ExecutionError))
@@ -154,6 +157,20 @@
             <Empty Description="@("无数据")" />
         }
     </div>
+</Modal>
+
+<Modal Title="图表预览"
+       Visible="@_isChartModalVisible"
+       OnOk="@OnChartOk"
+       OnCancel="@OnChartCancel"
+       Style="width:80%"
+       Centered>
+    <div style="margin-bottom:8px;color:#888;">根据最新一次查询结果自动生成图表</div>
+    <div id="chatChartContainer" style="width:100%;height:520px;"></div>
+    <div style="text-align:right;margin-top:12px;">
+        <Button OnClick="@ExportChartPng">导出 PNG</Button>
+    </div>
+    
 </Modal>
 
 <style>
@@ -363,6 +380,7 @@
     private ElementReference _chatContainerRef;
     private bool _isResultModalVisible = false;
     private string _lastExecutedSql;
+    private bool _isChartModalVisible = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -616,6 +634,60 @@
         {
             Console.WriteLine($"复制SQL失败: {ex.Message}");
             await MessageService.Error("复制失败，请手动选择并复制");
+        }
+    }
+
+    /// <summary>
+    /// 打开图表预览并渲染
+    /// </summary>
+    private async Task ShowChartAsync()
+    {
+        if (_sqlResult == null || _sqlResult.Count == 0)
+        {
+            await MessageService.Info("暂无可视化数据");
+            return;
+        }
+
+        _isChartModalVisible = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await Task.Delay(50); // 等待DOM渲染
+            await JSRuntime.InvokeVoidAsync("echartsInterop.renderAutoChart", "chatChartContainer", _sqlResult);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"渲染图表失败: {ex.Message}");
+            await MessageService.Error("渲染图表失败");
+        }
+    }
+
+    private async Task OnChartOk()
+    {
+        await OnChartCancel();
+    }
+
+    private async Task OnChartCancel()
+    {
+        _isChartModalVisible = false;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("echartsInterop.dispose", "chatChartContainer");
+        }
+        catch { }
+    }
+
+    private async Task ExportChartPng()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("echartsInterop.exportPng", "chatChartContainer");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"导出失败: {ex.Message}");
+            await MessageService.Error("导出失败");
         }
     }
 }

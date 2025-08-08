@@ -3,6 +3,10 @@
 @using AntDesign
 @using AntDesign.Form
 @using Microsoft.AspNetCore.Components.Forms
+@using System.IO
+@using System.Linq
+@using System.Collections.Generic
+@using MiniExcelLibs
 @using Text2Sql.Net.Domain.Model
 @using Text2Sql.Net.Repositories.Text2Sql
 @using Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection
@@ -30,26 +34,46 @@
                                 <SelectOption TItem="string" TItemValue="string" Value="@DatabaseTypeEnum.MySQL" Label="MySQL" />
                                 <SelectOption TItem="string" TItemValue="string" Value="@DatabaseTypeEnum.PostgreSQL" Label="PostgreSQL" />
                                 <SelectOption TItem="string" TItemValue="string" Value="@DatabaseTypeEnum.SQLite" Label="SQLite" />
+                                <SelectOption TItem="string" TItemValue="string" Value="@DatabaseTypeEnum.Excel" Label="Excel (导入到SQLite)" />
                             </SelectOptions>
                         </Select>
                     </FormItem>
-                    <FormItem Label="服务器地址">
+                    @if (_model.DbType != DatabaseTypeEnum.Excel)
+                    {
+                        <FormItem Label="服务器地址">
                         <Input @bind-Value="@_model.Server" Placeholder="请输入服务器地址" />
-                    </FormItem>
-                    <FormItem Label="端口号" Required>
-                        <AntDesign.InputNumber TValue="int?" @bind-Value="@_model.Port" Placeholder="请输入端口号" Min="1" Max="65535" />
-                    </FormItem>
-                    <FormItem Label="数据库名称">
-                        <Input @bind-Value="@_model.Database" Placeholder="请输入数据库名称" />
-                    </FormItem>
-                    <FormItem Label="用户名">
-                        <Input @bind-Value="@_model.Username" Placeholder="请输入用户名" />
-                    </FormItem>
-                    <FormItem Label="密码">
-                        <InputPassword @bind-Value="@_model.Password" Placeholder="请输入密码" />
-                    </FormItem>
+                        </FormItem>
+                        <FormItem Label="端口号" Required>
+                            <AntDesign.InputNumber TValue="int?" @bind-Value="@_model.Port" Placeholder="请输入端口号" Min="1" Max="65535" />
+                        </FormItem>
+                        <FormItem Label="数据库名称">
+                            <Input @bind-Value="@_model.Database" Placeholder="请输入数据库名称" />
+                        </FormItem>
+                        <FormItem Label="用户名">
+                            <Input @bind-Value="@_model.Username" Placeholder="请输入用户名" />
+                        </FormItem>
+                        <FormItem Label="密码">
+                            <InputPassword @bind-Value="@_model.Password" Placeholder="请输入密码" />
+                        </FormItem>
+                    }
+                    else
+                    {
+                        <FormItem Label="Excel文件" Required>
+                            <InputFile OnChange="OnExcelSelected" accept=".xlsx,.xls" />
+                        </FormItem>
+                        <FormItem Label="导入为库名">
+                            <Input @bind-Value="@_excelDbName" Placeholder="用于生成SQLite文件名，例如 sales_db" />
+                        </FormItem>
+                    }
                     <FormItem Label="连接字符串">
-                        <Button Type="@ButtonType.Primary" OnClick="GenerateConnectionString" Style="margin-bottom:10px;">生成</Button>
+                        @if (_model.DbType == DatabaseTypeEnum.Excel)
+                        {
+                            <Button Type="@ButtonType.Primary" OnClick="ImportExcelToSqlite" Loading="@_importing" Style="margin-bottom:10px;">导入Excel到SQLite并生成连接</Button>
+                        }
+                        else
+                        {
+                            <Button Type="@ButtonType.Primary" OnClick="GenerateConnectionString" Style="margin-bottom:10px;">生成</Button>
+                        }
                         <TextArea @bind-Value="@_model.ConnectionString" Placeholder="连接字符串将自动生成，也可手动输入" 
                         AutoSize MinRows="2" MaxRows="6" />
                     </FormItem>
@@ -75,6 +99,9 @@
     private Form<DatabaseConnectionConfig> _form;
     private DatabaseConnectionConfig _model = new DatabaseConnectionConfig();
     private bool _submitting = false;
+    private bool _importing = false;
+    private IBrowserFile _excelFile;
+    private string _excelDbName = "excel_db";
     [Parameter]  public string ConId { get; set; }
 
     protected override void OnInitialized()
@@ -103,11 +130,21 @@
                 DatabaseTypeEnum.MySQL => 3306,
                 DatabaseTypeEnum.PostgreSQL => 5432,
                 DatabaseTypeEnum.SQLite => 0,
+                DatabaseTypeEnum.Excel => 0,
                 _ => 0
             };
 
-            // 自动生成连接字符串
-            GenerateConnectionString();
+            if (selectedValue == DatabaseTypeEnum.Excel)
+            {
+                _model.Server = string.Empty;
+                _model.Username = string.Empty;
+                _model.Password = string.Empty;
+            }
+            else
+            {
+                // 自动生成连接字符串
+                GenerateConnectionString();
+            }
         }
     }
 
@@ -119,8 +156,120 @@
             DatabaseTypeEnum.MySQL => $"Server={_model.Server};Port={_model.Port};Database={_model.Database};Uid={_model.Username};Pwd={_model.Password};",
             DatabaseTypeEnum.PostgreSQL => $"Host={_model.Server};Port={_model.Port};Database={_model.Database};Username={_model.Username};Password={_model.Password};",
             DatabaseTypeEnum.SQLite => $"Data Source={_model.Database};",
+            DatabaseTypeEnum.Excel => _model.ConnectionString, // 由导入流程生成
             _ => string.Empty
         };
+    }
+
+    private void OnExcelSelected(InputFileChangeEventArgs e)
+    {
+        _excelFile = e.File;
+    }
+
+    private async Task ImportExcelToSqlite()
+    {
+        if (_excelFile == null)
+        {
+            await MessageService.Warning("请先选择Excel文件");
+            return;
+        }
+        _importing = true;
+        try
+        {
+            // 保存到临时目录
+            var uploads = Path.Combine(AppContext.BaseDirectory, "uploads");
+            Directory.CreateDirectory(uploads);
+            var excelPath = Path.Combine(uploads, $"{Guid.NewGuid()}_{_excelFile.Name}");
+            await using (var fs = File.Create(excelPath))
+            {
+                await _excelFile.OpenReadStream(long.MaxValue).CopyToAsync(fs);
+            }
+
+            // 解析Excel各Sheet并写入SQLite
+            var dbFolder = Path.Combine(AppContext.BaseDirectory, "excel_dbs");
+            Directory.CreateDirectory(dbFolder);
+            var sqliteFileName = string.IsNullOrWhiteSpace(_excelDbName) ? Path.GetFileNameWithoutExtension(_excelFile.Name) : _excelDbName.Trim();
+            var sqlitePath = Path.Combine(dbFolder, $"{sqliteFileName}.db");
+
+            await BuildSqliteFromExcelAsync(excelPath, sqlitePath);
+
+            _model.Database = sqlitePath;
+            _model.ConnectionString = $"Data Source={sqlitePath};";
+            await MessageService.Success("Excel 导入 SQLite 成功，已生成连接字符串");
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"导入失败: {ex.Message}");
+        }
+        finally
+        {
+            _importing = false;
+        }
+    }
+
+    private async Task BuildSqliteFromExcelAsync(string excelPath, string sqlitePath)
+    {
+        // 清空已存在库
+        if (File.Exists(sqlitePath))
+        {
+            try { File.Delete(sqlitePath); } catch { }
+        }
+
+        // 使用 Sqlite + SqlSugar 直接建库并插入
+        using var db = new SqlSugar.SqlSugarClient(new SqlSugar.ConnectionConfig
+        {
+            ConnectionString = $"Data Source={sqlitePath};",
+            DbType = SqlSugar.DbType.Sqlite,
+            IsAutoCloseConnection = true
+        });
+
+        // 读取所有sheet
+        var sheets = MiniExcel.GetSheetNames(excelPath);
+        foreach (var sheet in sheets)
+        {
+            var rows = MiniExcel.Query(excelPath, sheetName: sheet).ToList();
+            if (rows.Count == 0) continue;
+
+            // 列名集合
+            var first = (IDictionary<string, object>)rows[0];
+            var columns = first.Keys.ToList();
+
+            // 生成建表SQL（简单推断数据类型为TEXT/REAL/INTEGER）
+            var safeTable = ToSafeIdentifier(sheet);
+            var columnDefs = new List<string>();
+            foreach (var col in columns)
+            {
+                string type = "TEXT";
+                foreach (IDictionary<string, object> r in rows)
+                {
+                    var v = r[col];
+                    if (v == null) continue;
+                    if (v is int or long) { type = "INTEGER"; break; }
+                    if (v is double or float or decimal) { type = "REAL"; break; }
+                }
+                columnDefs.Add($"[{col}] {type}");
+            }
+            string createSql = $"CREATE TABLE IF NOT EXISTS [{safeTable}] ({string.Join(",", columnDefs)});";
+            await db.Ado.ExecuteCommandAsync(createSql);
+
+            // 批量插入
+            foreach (IDictionary<string, object> r in rows)
+            {
+                var cols = string.Join(",", columns.Select(c => $"[{c}]"));
+                var vals = string.Join(",", columns.Select(c => "@" + c));
+                string insertSql = $"INSERT INTO [{safeTable}] ({cols}) VALUES ({vals});";
+                var parameters = columns.Select(c => new SqlSugar.SugarParameter("@" + c, r[c] ?? DBNull.Value)).ToArray();
+                await db.Ado.ExecuteCommandAsync(insertSql, parameters);
+            }
+        }
+    }
+
+    private static string ToSafeIdentifier(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "sheet";
+        var safe = new string(name.Where(ch => char.IsLetterOrDigit(ch) || ch == '_' || ch == '-').ToArray());
+        if (string.IsNullOrWhiteSpace(safe)) safe = "sheet";
+        return safe;
     }
 
     private async Task HandleSubmit()

@@ -46,7 +46,11 @@ namespace Text2Sql.Net.Domain.Service
                 }
 
                 // 创建数据库连接
-                var dbType = GetDbType(connectionConfig.DbType);
+                // Excel 视为 Sqlite 执行
+                var typed = string.Equals(connectionConfig.DbType, "Excel", StringComparison.OrdinalIgnoreCase)
+                    ? "sqlite"
+                    : connectionConfig.DbType;
+                var dbType = GetDbType(typed);
                 var db = new SqlSugarClient(new ConnectionConfig
                 {
                     ConnectionString = connectionConfig.ConnectionString,

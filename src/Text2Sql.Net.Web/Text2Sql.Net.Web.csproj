@@ -34,6 +34,7 @@
     <PackageReference Include="Polly" Version="8.5.0" />
     <PackageReference Include="SqlSugarCore" Version="5.1.4.171" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+    <PackageReference Include="MiniExcel" Version="1.29.0" />
   </ItemGroup>
 
   <ItemGroup>

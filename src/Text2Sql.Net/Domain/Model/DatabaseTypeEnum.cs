@@ -26,5 +26,10 @@ namespace Text2Sql.Net.Domain.Model
         /// SQLite 数据库
         /// </summary>
         public const string SQLite = "SQLite";
+
+        /// <summary>
+        /// Excel 文件（导入为本地 SQLite 后使用）
+        /// </summary>
+        public const string Excel = "Excel";
     }
 } 
