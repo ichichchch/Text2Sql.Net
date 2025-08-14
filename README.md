@@ -54,25 +54,123 @@ Text2Sql.Net是一个基于.NET平台的自然语言转SQL工具，旨在帮助�
 ## 核心处理流程
 ```mermaid
 flowchart TD
-    A[用户输入文本] --> B(语义解析)
-    B --> C{语法校验}
-    C -->|通过| D[生成AST]
-    C -->|失败| E[错误反馈]
-    D --> F[SQL生成]
-    F --> G[执行优化]
-    G --> H[结果返回]
+    A[用户输入自然语言查询] --> B{选择数据库连接}
+    B -->|未选择| C[提示选择数据库]
+    B -->|已选择| D[保存用户消息到聊天历史]
+    
+    D --> E[语义搜索获取相关Schema]
+    E --> F[向量数据库查询]
+    F --> G[相关性评分与表关联推断]
+    G --> H[构建Schema上下文]
+    
+    H --> I[调用LLM生成SQL]
+    I --> J[使用Semantic Kernel插件]
+    J --> K[SQL安全检查]
+    
+    K -->|查询语句| L[自动执行SQL]
+    K -->|操作语句| M[仅生成SQL<br/>不自动执行]
+    
+    L --> N{执行是否成功}
+    N -->|成功| O[返回查询结果]
+    N -->|失败| P[SQL优化]
+    
+    P --> Q[使用错误信息优化SQL]
+    Q --> R[重新执行优化后SQL]
+    R --> S[返回最终结果]
+    
+    M --> T[提示手动执行]
+    O --> U[保存响应到聊天历史]
+    S --> U
+    T --> U
+    U --> V[显示结果给用户]
+    
+    style A fill:#e1f5fe
+    style V fill:#e8f5e8
+    style K fill:#fff3e0
+    style P fill:#fce4ec
 ```
 
-## 核心类说明
-### ChatService
+## Schema训练与向量搜索流程
 ```mermaid
 flowchart TD
-    A[用户输入] --> B{语义解析}
-    B -->|成功| C[生成抽象语法树]
-    C --> D[SQL优化器]
-    D --> E[生成可执行SQL]
-    B -->|失败| F[上下文修正]
-    F --> G[LLM交互]
-    G --> C
+    A[数据库连接配置] --> B[Schema训练服务]
+    B --> C[提取数据库表结构]
+    C --> D[获取表/列/外键信息]
+    D --> E[生成表描述文本]
+    
+    E --> F[文本向量化]
+    F --> G[存储到向量数据库]
+    
+    G --> H{向量存储类型}
+    H -->|SQLite| I[SQLiteMemoryStore]
+    H -->|PostgreSQL| J[PostgresMemoryStore with pgvector]
+    
+    I --> K[Schema训练完成]
+    J --> K
+    
+    K --> L[等待用户查询]
+    L --> M[语义搜索]
+    M --> N[相关性匹配]
+    N --> O[返回相关表结构]
+    
+    style A fill:#e3f2fd
+    style F fill:#f3e5f5
+    style G fill:#e8f5e8
+    style M fill:#fff3e0
+```
+
+## 系统架构图
+```mermaid
+flowchart LR
+    subgraph "用户界面层"
+        A[Blazor前端页面]
+        B[数据库连接选择]
+        C[聊天输入框]
+        D[SQL结果展示]
+    end
+    
+    subgraph "服务层"
+        E[ChatService<br/>聊天服务]
+        F[SchemaTrainingService<br/>Schema训练服务]
+        G[SemanticService<br/>语义服务]
+        H[SqlExecutionService<br/>SQL执行服务]
+    end
+    
+    subgraph "数据访问层"
+        I[DatabaseConnectionRepository<br/>数据库连接仓储]
+        J[ChatMessageRepository<br/>聊天消息仓储]
+        K[DatabaseSchemaRepository<br/>Schema仓储]
+        L[SchemaEmbeddingRepository<br/>向量嵌入仓储]
+    end
+    
+    subgraph "外部服务"
+        M[OpenAI API<br/>LLM服务]
+        N[向量数据库<br/>SQLite/PostgreSQL]
+        O[业务数据库<br/>多种数据库支持]
+    end
+    
+    A --> E
+    B --> I
+    C --> E
+    D --> H
+    
+    E --> F
+    E --> G
+    E --> H
+    E --> J
+    
+    F --> K
+    F --> L
+    G --> N
+    H --> I
+    H --> O
+    
+    E --> M
+    G --> M
+    
+    style A fill:#e1f5fe
+    style E fill:#f3e5f5
+    style M fill:#fff3e0
+    style N fill:#e8f5e8
 ```
 
