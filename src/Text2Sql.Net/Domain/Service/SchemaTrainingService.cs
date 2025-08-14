@@ -182,7 +182,11 @@ namespace Text2Sql.Net.Domain.Service
                     return existingSchema.SchemaContent;
                 }
 
-                var dbType = GetDbType(connectionConfig.DbType);
+                // Excel 视为 Sqlite
+                var typeForSchema = string.Equals(connectionConfig.DbType, "Excel", StringComparison.OrdinalIgnoreCase)
+                    ? "sqlite"
+                    : connectionConfig.DbType;
+                var dbType = GetDbType(typeForSchema);
                 // 根据数据库类型创建连接
                 var db = new SqlSugarClient(new ConnectionConfig
                 {

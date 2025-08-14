@@ -73,5 +73,10 @@
             <param name="sql">要复制的SQL语句</param>
             <returns>异步任务</returns>
         </member>
+        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.ShowChartAsync">
+            <summary>
+            打开图表预览并渲染
+            </summary>
+        </member>
     </members>
 </doc>

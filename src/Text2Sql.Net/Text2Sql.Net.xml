@@ -118,6 +118,11 @@
             SQLite 数据库
             </summary>
         </member>
+        <member name="F:Text2Sql.Net.Domain.Model.DatabaseTypeEnum.Excel">
+            <summary>
+            Excel 文件（导入为本地 SQLite 后使用）
+            </summary>
+        </member>
         <member name="T:Text2Sql.Net.Domain.Service.ChatService">
             <summary>
             聊天服务实现
