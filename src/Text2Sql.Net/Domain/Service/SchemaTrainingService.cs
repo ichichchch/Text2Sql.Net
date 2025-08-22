@@ -163,6 +163,153 @@ namespace Text2Sql.Net.Domain.Service
         }
 
         /// <inheritdoc/>
+        public async Task<bool> TrainDatabaseSchemaAsync(string connectionId, List<string> tableNames)
+        {
+            try
+            {
+                if (tableNames == null || !tableNames.Any())
+                {
+                    _logger.LogWarning("未指定要训练的表");
+                    return false;
+                }
+
+                // 获取数据库连接配置
+                var connectionConfig = await _connectionRepository.GetByIdAsync(connectionId);
+                if (connectionConfig == null)
+                {
+                    _logger.LogError($"找不到数据库连接配置：{connectionId}");
+                    return false;
+                }
+
+                // 获取所有表信息
+                var allTables = await GetDatabaseTablesAsync(connectionId);
+                if (allTables == null || !allTables.Any())
+                {
+                    _logger.LogWarning($"没有找到表信息：{connectionId}");
+                    return false;
+                }
+
+                // 筛选指定的表
+                var selectedTables = allTables.Where(t => tableNames.Contains(t.TableName, StringComparer.OrdinalIgnoreCase)).ToList();
+                if (!selectedTables.Any())
+                {
+                    _logger.LogWarning($"未找到指定的表：{string.Join(", ", tableNames)}");
+                    return false;
+                }
+
+                // 清理选定表的旧嵌入数据
+                foreach (var tableName in tableNames)
+                {
+                    await _embeddingRepository.DeleteByTableNameAsync(connectionId, tableName);
+                }
+
+                // 获取选定表的完整Schema信息
+                string allSchemaJson = await GetDatabaseSchemaAsync(connectionId);
+                if (string.IsNullOrEmpty(allSchemaJson))
+                {
+                    return false;
+                }
+
+                var allTablesWithDetails = JsonConvert.DeserializeObject<List<TableInfo>>(allSchemaJson);
+                if (allTablesWithDetails == null)
+                {
+                    return false;
+                }
+
+                var selectedTablesWithDetails = allTablesWithDetails.Where(t => tableNames.Contains(t.TableName, StringComparer.OrdinalIgnoreCase)).ToList();
+
+                // 为选定的表创建向量嵌入
+                foreach (var table in selectedTablesWithDetails)
+                {
+                    try
+                    {
+                        // 构建包含所有列信息的表描述文本
+                        StringBuilder tableDescription = new StringBuilder();
+                        tableDescription.AppendLine($"表名: {table.TableName}");
+                        tableDescription.AppendLine($"描述: {table.Description ?? "无描述"}");
+
+                        // 添加外键关系信息
+                        if (table.ForeignKeys != null && table.ForeignKeys.Count > 0)
+                        {
+                            tableDescription.AppendLine("外键关系:");
+                            foreach (var fk in table.ForeignKeys)
+                            {
+                                tableDescription.AppendLine($"  - {fk.RelationshipDescription}");
+                            }
+                        }
+
+                        tableDescription.AppendLine("列信息:");
+
+                        foreach (var column in table.Columns)
+                        {
+                            tableDescription.AppendLine($"  - 列名: {column.ColumnName}, 类型: {column.DataType}, 主键: {(column.IsPrimaryKey ? "是" : "否")}, 可空: {(column.IsNullable ? "是" : "否")}, 描述: {column.Description ?? "无描述"}");
+                        }
+
+                        // 保存表的向量嵌入
+                        var tableEmbedding = new SchemaEmbedding
+                        {
+                            ConnectionId = connectionId,
+                            TableName = table.TableName,
+                            Description = tableDescription.ToString(),
+                            EmbeddingType = EmbeddingType.Table
+                        };
+
+                        // 生成表的向量
+                        string tableId = $"{connectionId}_{table.TableName}";
+                        SemanticTextMemory textMemory = await _semanticService.GetTextMemory();
+
+                        // 添加到向量存储
+                        await textMemory.SaveInformationAsync(connectionId, id: tableId, text: JsonConvert.SerializeObject(tableEmbedding), cancellationToken: default);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"训练表{table.TableName}时出错：{ex.Message}");
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"训练选定数据库表时出错：{ex.Message}");
+                return false;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<List<TableInfo>> GetDatabaseTablesAsync(string connectionId)
+        {
+            try
+            {
+                // 获取完整的数据库Schema
+                string schemaJson = await GetDatabaseSchemaAsync(connectionId);
+                if (string.IsNullOrEmpty(schemaJson))
+                {
+                    return new List<TableInfo>();
+                }
+
+                // 反序列化Schema信息
+                var tables = JsonConvert.DeserializeObject<List<TableInfo>>(schemaJson);
+                if (tables == null)
+                {
+                    return new List<TableInfo>();
+                }
+
+                // 只返回表的基本信息（表名和描述）
+                return tables.Select(t => new TableInfo
+                {
+                    TableName = t.TableName,
+                    Description = t.Description
+                }).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"获取数据库表列表时出错：{ex.Message}");
+                return new List<TableInfo>();
+            }
+        }
+
+        /// <inheritdoc/>
         public async Task<string> GetDatabaseSchemaAsync(string connectionId)
         {
             try

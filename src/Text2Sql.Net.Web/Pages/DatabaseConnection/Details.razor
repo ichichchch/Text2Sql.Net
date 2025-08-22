@@ -35,8 +35,11 @@
                 }
             </Descriptions>
             <div style="margin-top: 16px;">
-                <Button Type="@ButtonType.Primary" Style="margin-left: 8px;" Loading="@_trainingLoading" OnClick="@TrainDatabaseSchema">
-                    训练Schema
+                <Button Type="@ButtonType.Primary" Style="margin-right: 8px;" Loading="@_trainingLoading" OnClick="@TrainDatabaseSchema">
+                    训练全部Schema
+                </Button>
+                <Button Type="@ButtonType.Default" Style="margin-right: 8px;" OnClick="@(() => NavigateToSelectTables(Id))">
+                    选择表训练
                 </Button>
                 <Button Type="@ButtonType.Primary" OnClick="@(() => NavigateToEdit(Id))">
                     编辑
@@ -119,6 +122,11 @@
     private void NavigateToEdit(string id)
     {
         NavigationManager.NavigateTo($"/database-connection/create/{id}");
+    }
+
+    private void NavigateToSelectTables(string id)
+    {
+        NavigationManager.NavigateTo($"/database-connection/select-tables/{id}");
     }
 
     private void NavigateToList()

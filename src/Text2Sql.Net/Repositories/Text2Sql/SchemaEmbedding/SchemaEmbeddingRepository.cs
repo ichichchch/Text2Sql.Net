@@ -28,5 +28,11 @@ namespace Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding
         {
             return await DeleteAsync(x => x.ConnectionId == connectionId);
         }
+        
+        /// <inheritdoc/>
+        public async Task<bool> DeleteByTableNameAsync(string connectionId, string tableName)
+        {
+            return await DeleteAsync(x => x.ConnectionId == connectionId && x.TableName == tableName);
+        }
     }
 } 

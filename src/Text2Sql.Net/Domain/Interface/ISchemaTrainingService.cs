@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema;
 
 namespace Text2Sql.Net.Domain.Interface
 {
@@ -8,11 +10,26 @@ namespace Text2Sql.Net.Domain.Interface
     public interface ISchemaTrainingService
     {
         /// <summary>
-        /// 训练数据库Schema
+        /// 训练数据库Schema（全部表）
         /// </summary>
         /// <param name="connectionId">数据库连接ID</param>
         /// <returns>训练结果</returns>
         Task<bool> TrainDatabaseSchemaAsync(string connectionId);
+        
+        /// <summary>
+        /// 训练数据库Schema（选择的表）
+        /// </summary>
+        /// <param name="connectionId">数据库连接ID</param>
+        /// <param name="tableNames">要训练的表名列表</param>
+        /// <returns>训练结果</returns>
+        Task<bool> TrainDatabaseSchemaAsync(string connectionId, List<string> tableNames);
+        
+        /// <summary>
+        /// 获取数据库表列表
+        /// </summary>
+        /// <param name="connectionId">数据库连接ID</param>
+        /// <returns>表信息列表</returns>
+        Task<List<TableInfo>> GetDatabaseTablesAsync(string connectionId);
         
         /// <summary>
         /// 获取数据库Schema

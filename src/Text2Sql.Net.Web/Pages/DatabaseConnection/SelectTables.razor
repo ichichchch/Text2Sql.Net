@@ -1,0 +1,223 @@
+@page "/database-connection/select-tables/{Id}"
+@using Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema
+@using Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection
+@using Text2Sql.Net.Domain.Interface
+@inject IDatabaseConnectionConfigRepository DatabaseConnectionConfigRepository
+@inject ISchemaTrainingService SchemaTrainingService
+@inject MessageService MessageService
+@inject NavigationManager NavigationManager
+
+<PageContainer Title="选择表训练">
+    <ChildContent>
+        <Card Loading="@_loading">
+            <div style="margin-bottom: 16px;">
+                <Alert Type="@AlertType.Info" Message="选择要训练的数据库表" Description="请选择您想要训练的表，训练完成后这些表的Schema信息将被添加到向量数据库中。" ShowIcon="true" />
+            </div>
+            
+            @if (_model != null)
+            {
+                <Descriptions Title="@($"数据库连接：{_model.Name}")" Bordered>
+                    <DescriptionsItem Title="数据库类型" Span="2">
+                        @_model.DbType
+                    </DescriptionsItem>
+                    <DescriptionsItem Title="连接字符串" Span="2">
+                        @_model.ConnectionString
+                    </DescriptionsItem>
+                </Descriptions>
+                
+                <Divider />
+                
+                <div style="margin-bottom: 16px;">
+                    <Space>
+                        <SpaceItem>
+                            <Button Type="@ButtonType.Primary" Loading="@_loadingTables" OnClick="LoadTables">
+                                刷新表列表
+                            </Button>
+                        </SpaceItem>
+                        <SpaceItem>
+                            <Checkbox Checked="_selectAll" CheckedChanged="OnSelectAllChanged">全选</Checkbox>
+                        </SpaceItem>
+                    </Space>
+                </div>
+                
+                @if (_tables.Any())
+                {
+                    <div style="border: 1px solid #d9d9d9; border-radius: 8px; padding: 16px;">
+                        @foreach (var table in _tables)
+                        {
+                            <div style="margin-bottom: 8px; padding: 8px; border: 1px solid #f0f0f0; border-radius: 4px;">
+                                <Checkbox Checked="_selectedTables.Contains(table.TableName)" CheckedChanged="@((bool isChecked) => OnTableSelectionChanged(table.TableName, isChecked))">
+                                    <div>
+                                        <strong>@table.TableName</strong>
+                                        @if (!string.IsNullOrEmpty(table.Description))
+                                        {
+                                            <br />
+                                            <span style="color: #666; font-size: 12px;">@table.Description</span>
+                                        }
+                                    </div>
+                                </Checkbox>
+                            </div>
+                        }
+                    </div>
+                    
+                    <div style="margin-top: 16px;">
+                        <Space>
+                            <SpaceItem>
+                                <Button Type="@ButtonType.Primary" Size="@ButtonSize.Large" Loading="@_trainingLoading" OnClick="TrainSelectedTables" Disabled="@(!_selectedTables.Any())">
+                                    训练选中的表 (@_selectedTables.Count())
+                                </Button>
+                            </SpaceItem>
+                            <SpaceItem>
+                                <Button Size="@ButtonSize.Large" OnClick="@NavigateToDetails">
+                                    返回详情
+                                </Button>
+                            </SpaceItem>
+                        </Space>
+                    </div>
+                }
+                else if (!_loadingTables)
+                {
+                    <div style="text-align: center; padding: 40px; color: #999;">暂无数据表</div>
+                }
+            }
+        </Card>
+    </ChildContent>
+</PageContainer>
+
+@code {
+    [Parameter]
+    public string Id { get; set; } = string.Empty;
+
+    private DatabaseConnectionConfig? _model = null;
+    private List<TableInfo> _tables = new();
+    private List<string> _selectedTables = new();
+    private bool _selectAll = false;
+    private bool _loading = false;
+    private bool _loadingTables = false;
+    private bool _trainingLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        await LoadTables();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try
+        {
+            var data = await DatabaseConnectionConfigRepository.GetByIdAsync(Id);
+            if (data != null)
+            {
+                _model = data;
+            }
+            else
+            {
+                _ = MessageService.Error("找不到指定的数据库连接配置");
+                NavigateToDetails();
+            }
+        }
+        catch (Exception ex)
+        {
+            _ = MessageService.Error($"加载数据失败: {ex.Message}");
+            NavigateToDetails();
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadTables()
+    {
+        _loadingTables = true;
+        try
+        {
+            _tables = await SchemaTrainingService.GetDatabaseTablesAsync(Id);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _ = MessageService.Error($"加载表列表失败: {ex.Message}");
+        }
+        finally
+        {
+            _loadingTables = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OnSelectAllChanged(bool isChecked)
+    {
+        _selectAll = isChecked;
+        if (_selectAll)
+        {
+            _selectedTables = _tables.Select(t => t.TableName).ToList();
+        }
+        else
+        {
+            _selectedTables.Clear();
+        }
+        StateHasChanged();
+    }
+
+    private void OnTableSelectionChanged(string tableName, bool isChecked)
+    {
+        if (isChecked)
+        {
+            if (!_selectedTables.Contains(tableName))
+            {
+                _selectedTables.Add(tableName);
+            }
+        }
+        else
+        {
+            _selectedTables.Remove(tableName);
+        }
+        
+        _selectAll = _selectedTables.Count == _tables.Count;
+        StateHasChanged();
+    }
+
+    private async Task TrainSelectedTables()
+    {
+        if (!_selectedTables.Any())
+        {
+            _ = MessageService.Warning("请选择要训练的表");
+            return;
+        }
+
+        _trainingLoading = true;
+        try
+        {
+            var selectedTableNames = _selectedTables.ToList();
+            var result = await SchemaTrainingService.TrainDatabaseSchemaAsync(Id, selectedTableNames);
+            
+            if (result)
+            {
+                _ = MessageService.Success($"成功训练 {selectedTableNames.Count} 个表的Schema信息");
+                NavigateToDetails();
+            }
+            else
+            {
+                _ = MessageService.Error("Schema训练失败");
+            }
+        }
+        catch (Exception ex)
+        {
+            _ = MessageService.Error($"训练失败: {ex.Message}");
+        }
+        finally
+        {
+            _trainingLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void NavigateToDetails()
+    {
+        NavigationManager.NavigateTo($"/database-connection/details/{Id}");
+    }
+}
