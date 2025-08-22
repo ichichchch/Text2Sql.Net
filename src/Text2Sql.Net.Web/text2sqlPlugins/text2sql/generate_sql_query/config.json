@@ -1,6 +1,23 @@
 {
   "schema": 1,
   "description": "根据用户问题和Schema信息生成SQL查询",
+  "input_variables": [
+    {
+      "name": "dbType",
+      "description": "数据库类型",
+      "required": true
+    },
+    {
+      "name": "schemaInfo", 
+      "description": "数据库表结构信息",
+      "required": true
+    },
+    {
+      "name": "userMessage",
+      "description": "用户查询问题",
+      "required": true
+    }
+  ],
   "execution_settings": {
     "default": {
       "temperature": 0.1

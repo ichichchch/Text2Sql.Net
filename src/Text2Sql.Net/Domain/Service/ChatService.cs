@@ -32,6 +32,10 @@ namespace Text2Sql.Net.Domain.Service
         private readonly IDatabaseSchemaRepository _schemaRepository;
         private readonly ISqlExecutionService _sqlExecutionService;
         private readonly ISemanticService _semanticService;
+        private readonly IIntelligentSchemaLinkingService _schemaLinkingService;
+        private readonly IAdvancedPromptService _promptService;
+        private readonly IExecutionFeedbackOptimizer _feedbackOptimizer;
+        private readonly IConversationStateManager _conversationManager;
         private readonly Kernel _kernel;
         private readonly ILogger<ChatService> _logger;
 
@@ -44,6 +48,10 @@ namespace Text2Sql.Net.Domain.Service
             IDatabaseSchemaRepository schemaRepository,
             ISqlExecutionService sqlExecutionService,
             ISemanticService semanticService,
+            IIntelligentSchemaLinkingService schemaLinkingService,
+            IAdvancedPromptService promptService,
+            IExecutionFeedbackOptimizer feedbackOptimizer,
+            IConversationStateManager conversationManager,
             Kernel kernel,
             ILogger<ChatService> logger)
         {
@@ -52,6 +60,10 @@ namespace Text2Sql.Net.Domain.Service
             _schemaRepository = schemaRepository;
             _sqlExecutionService = sqlExecutionService;
             _semanticService = semanticService;
+            _schemaLinkingService = schemaLinkingService;
+            _promptService = promptService;
+            _feedbackOptimizer = feedbackOptimizer;
+            _conversationManager = conversationManager;
             _kernel = kernel;
             _logger = logger;
         }
@@ -83,61 +95,103 @@ namespace Text2Sql.Net.Domain.Service
         {
             try
             {
-                // 1. 构建语义查询，获取相关的表结构信息
-                var schemaInfo = await GetRelevantSchemaInfoAsync(connectionId, userMessage);
-                if (string.IsNullOrEmpty(schemaInfo))
+                _logger.LogInformation($"开始处理用户查询：{userMessage}");
+
+                // 1. 多轮对话处理：分析查询类型和解析上下文
+                var followupType = await _conversationManager.AnalyzeFollowupQueryAsync(connectionId, userMessage);
+                var resolvedMessage = await _conversationManager.ResolveCoreferencesAsync(connectionId, userMessage);
+                
+                if (followupType != FollowupQueryType.NewQuery)
                 {
-                    return CreateErrorResponse(connectionId, "无法找到相关的数据库表结构信息");
+                    resolvedMessage = await _conversationManager.ProcessIncrementalQueryAsync(connectionId, resolvedMessage, followupType);
+                    _logger.LogInformation($"检测到后续查询类型：{followupType}，解析后消息：{resolvedMessage}");
                 }
 
-                var con =await _connectionRepository.GetByIdAsync(connectionId);
+                // 2. 智能Schema Linking：获取相关表结构
+                var schemaLinkingResult = await _schemaLinkingService.GetRelevantSchemaAsync(connectionId, resolvedMessage);
+                if (!schemaLinkingResult.Success)
+                {
+                    return CreateErrorResponse(connectionId, schemaLinkingResult.ErrorMessage ?? "无法获取相关的数据库表结构信息");
+                }
 
-                // 2. 使用语义核心生成SQL
-                string sqlQuery = await GenerateSqlQueryAsync(con.DbType,userMessage, schemaInfo);
+                var connectionConfig = await _connectionRepository.GetByIdAsync(connectionId);
+
+                // 3. 高级Prompt工程：生成优化的Prompt
+                var optimizedPrompt = await _promptService.CreateProgressivePromptAsync(
+                    resolvedMessage, 
+                    schemaLinkingResult.SchemaJson, 
+                    connectionConfig.DbType);
+
+                // 4. 使用优化Prompt生成SQL
+                string sqlQuery = await GenerateSqlWithAdvancedPromptAsync(optimizedPrompt);
                 if (string.IsNullOrEmpty(sqlQuery))
                 {
                     return CreateErrorResponse(connectionId, "无法生成SQL查询语句");
                 }
 
-                ChatMessage responseMessage=new ChatMessage();
+                _logger.LogInformation($"生成的SQL：{sqlQuery}");
 
-                var flag = await CheckSqlAsync(sqlQuery);
-                if (flag)
+                // 5. SQL安全检查
+                var isSafeQuery = await CheckSqlAsync(sqlQuery);
+                if (!isSafeQuery)
                 {
-
-                    // 3. 执行SQL查询
-                    var (result, errorMessage) = await _sqlExecutionService.ExecuteQueryAsync(connectionId, sqlQuery);
-
-                    // 4. 创建并保存响应消息
-                    responseMessage = new ChatMessage
+                    var responseMessage = new ChatMessage
                     {
                         Id = Guid.NewGuid().ToString(),
                         ConnectionId = connectionId,
-                        Message = string.IsNullOrEmpty(errorMessage)
-                            ? $"根据您的问题，我生成并执行了以下SQL查询：\n\n查询结果包含 {result?.Count ?? 0} 条记录。"
-                            : $"我生成了以下SQL查询，但执行时出现错误：\n\n错误信息：{errorMessage}",
-                        IsUser = false,
-                        SqlQuery = sqlQuery,
-                        ExecutionError = errorMessage,
-                        QueryResult = result,
-                        CreateTime = DateTime.Now
-                    };
-                }
-                else 
-                {
-                    responseMessage = new ChatMessage
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        ConnectionId = connectionId,
-                        Message ="由于安全控制仅支持查询语句自动执行，操作性语句需要手动执行",
+                        Message = "由于安全控制，仅支持查询语句自动执行，操作性语句需要手动执行",
                         IsUser = false,
                         SqlQuery = sqlQuery,
                         QueryResult = new List<Dictionary<string, object>>(),
                         CreateTime = DateTime.Now
                     };
-                }
                     await _chatRepository.InsertAsync(responseMessage);
-                return responseMessage;
+                    return responseMessage;
+                }
+
+                // 6. 执行反馈优化：尝试执行并迭代优化
+                var optimizationResult = await _feedbackOptimizer.OptimizeWithFeedbackAsync(
+                    connectionId, resolvedMessage, schemaLinkingResult.SchemaJson, sqlQuery);
+
+                // 7. 创建响应消息
+                var finalResponseMessage = new ChatMessage
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ConnectionId = connectionId,
+                    IsUser = false,
+                    SqlQuery = optimizationResult.FinalSql,
+                    CreateTime = DateTime.Now
+                };
+
+                if (optimizationResult.Success)
+                {
+                    // 获取最终执行结果
+                    var (finalResult, finalError) = await _sqlExecutionService.ExecuteQueryAsync(connectionId, optimizationResult.FinalSql);
+                    
+                    finalResponseMessage.Message = string.IsNullOrEmpty(finalError)
+                        ? $"根据您的问题，我生成并执行了优化的SQL查询：\n\n查询结果包含 {finalResult?.Count ?? 0} 条记录。"
+                        : $"SQL查询已优化，但执行时仍出现错误：\n\n错误信息：{finalError}";
+                    
+                    finalResponseMessage.ExecutionError = finalError;
+                    finalResponseMessage.QueryResult = finalResult ?? new List<Dictionary<string, object>>();
+
+                    // 8. 更新对话上下文
+                    await _conversationManager.UpdateContextAsync(
+                        connectionId, userMessage, finalResponseMessage.Message, 
+                        optimizationResult.FinalSql, finalResult ?? new List<Dictionary<string, object>>());
+                }
+                else
+                {
+                    finalResponseMessage.Message = $"SQL查询生成失败：{optimizationResult.ErrorMessage}";
+                    finalResponseMessage.ExecutionError = optimizationResult.ErrorMessage;
+                    finalResponseMessage.QueryResult = new List<Dictionary<string, object>>();
+                }
+
+                // 9. 保存聊天记录
+                await _chatRepository.InsertAsync(finalResponseMessage);
+
+                _logger.LogInformation($"查询处理完成，优化迭代次数：{optimizationResult.OptimizationSteps.Count}");
+                return finalResponseMessage;
             }
             catch (Exception ex)
             {
@@ -179,7 +233,7 @@ namespace Text2Sql.Net.Domain.Service
                     IsUser = false,
                     SqlQuery = optimizedSql,
                     ExecutionError = newErrorMessage,
-                    QueryResult = result,
+                    QueryResult = result ?? new List<Dictionary<string, object>>(),
                     CreateTime = DateTime.Now
                 };
 
@@ -211,7 +265,7 @@ namespace Text2Sql.Net.Domain.Service
                 }
 
                 // 解析所有表结构信息
-                List<TableInfo> allTables = JsonConvert.DeserializeObject<List<TableInfo>>(schema.SchemaContent);
+                List<TableInfo> allTables = JsonConvert.DeserializeObject<List<TableInfo>>(schema.SchemaContent) ?? new List<TableInfo>();
                 
                 // 使用向量存储进行语义搜索，采用动态阈值策略
                 SemanticTextMemory memory = await _semanticService.GetTextMemory();
@@ -246,7 +300,7 @@ namespace Text2Sql.Net.Domain.Service
                             if (embedding != null && embedding.EmbeddingType == EmbeddingType.Table)
                             {
                                 // 解析表结构
-                                TableInfo tableInfo = allTables.FirstOrDefault(t => t.TableName == embedding.TableName);
+                                TableInfo? tableInfo = allTables.FirstOrDefault(t => t.TableName == embedding.TableName);
                                 if (tableInfo != null && !relevantTables.Any(t => t.TableName == tableInfo.TableName))
                                 {
                                     _logger.LogInformation($"找到相关表: {tableInfo.TableName}，相关性分数: {result.Relevance:F2}");
@@ -271,7 +325,7 @@ namespace Text2Sql.Net.Domain.Service
                 if (relevantTables.Count == 0)
                 {
                     _logger.LogWarning($"未找到与问题相关的表结构信息，返回完整Schema：{userMessage}");
-                    return schema.SchemaContent;
+                    return schema.SchemaContent ?? string.Empty;
                 }
                 
                 // 应用表关联推断，添加关联表（将在下一步实现）
@@ -293,8 +347,10 @@ namespace Text2Sql.Net.Domain.Service
         /// <param name="sourceTables">已找到的相关表</param>
         /// <param name="allTables">所有表列表</param>
         /// <returns>包含关联表的扩展列表</returns>
-        private List<TableInfo> InferRelatedTables(List<TableInfo> sourceTables, List<TableInfo> allTables)
+        private List<TableInfo> InferRelatedTables(List<TableInfo> sourceTables, List<TableInfo>? allTables)
         {
+            if (allTables == null) return sourceTables;
+            
             var extendedTables = new List<TableInfo>(sourceTables);
             var tableNames = new HashSet<string>(sourceTables.Select(t => t.TableName));
             var addedTables = new HashSet<string>();
@@ -394,8 +450,42 @@ namespace Text2Sql.Net.Domain.Service
         }
 
         /// <summary>
-        /// 根据用户问题和Schema信息生成SQL查询
+        /// 使用高级Prompt生成SQL查询
         /// </summary>
+        /// <param name="optimizedPrompt">优化后的Prompt</param>
+        /// <returns>生成的SQL查询</returns>
+        private async Task<string> GenerateSqlWithAdvancedPromptAsync(string optimizedPrompt)
+        {
+            try
+            {
+                OpenAIPromptExecutionSettings settings = new()
+                {
+                    Temperature = 0.1,
+                    MaxTokens = 2000
+                };
+
+                // 直接使用优化后的完整Prompt
+                var result = await _kernel.InvokePromptAsync(optimizedPrompt, new KernelArguments(settings));
+                
+                // 提取生成的SQL
+                string sql = result?.ToString()?.Trim() ?? string.Empty;
+                
+                // 清理SQL结果
+                sql = CleanSqlResult(sql);
+                
+                return sql;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"使用高级Prompt生成SQL时出错：{ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// 根据用户问题和Schema信息生成SQL查询（兼容旧版本）
+        /// </summary>
+        /// <param name="dbType">数据库类型</param>
         /// <param name="userMessage">用户问题</param>
         /// <param name="schemaInfo">Schema信息</param>
         /// <returns>生成的SQL查询</returns>
@@ -419,7 +509,7 @@ namespace Text2Sql.Net.Domain.Service
                 var result = await _kernel.InvokeAsync(generateSqlFun, args);
                 
                 // 提取生成的SQL
-                string sql = result?.ToString()?.Trim();
+                string sql = result?.ToString()?.Trim() ?? string.Empty;
                 
                 // 简单清理，确保只返回SQL
                 sql = CleanSqlResult(sql);
@@ -451,7 +541,7 @@ namespace Text2Sql.Net.Domain.Service
                 var result = await _kernel.InvokeAsync(generateSqlFun, args);
 
                 // 提取生成的SQL
-                string flag = result?.ToString()?.Trim();
+                string flag = result?.ToString()?.Trim() ?? "0";
 
                 // 简单清理，确保只返回SQL
                 sql = CleanSqlResult(sql);
@@ -497,7 +587,7 @@ namespace Text2Sql.Net.Domain.Service
 
                 
                 // 提取优化后的SQL
-                string sql = result?.ToString()?.Trim();
+                string sql = result?.ToString()?.Trim() ?? string.Empty;
                 
                 // 简单清理，确保只返回SQL
                 sql = CleanSqlResult(sql);

@@ -24,6 +24,21 @@
             向量数据维度，PG需要设置
             </summary>
         </member>
+        <member name="T:Text2Sql.Net.Domain.Interface.IAdvancedPromptService">
+            <summary>
+            高级Prompt工程服务接口
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IAdvancedPromptService.CreateProgressivePromptAsync(System.String,System.String,System.String,Text2Sql.Net.Domain.Service.UserProfile)">
+            <summary>
+            创建渐进式复杂度的Few-shot Prompt
+            </summary>
+            <param name="userMessage">用户查询</param>
+            <param name="schemaInfo">Schema信息</param>
+            <param name="dbType">数据库类型</param>
+            <param name="userProfile">用户画像（可选）</param>
+            <returns>优化后的Prompt</returns>
+        </member>
         <member name="T:Text2Sql.Net.Domain.Interface.IChatService">
             <summary>
             聊天服务接口
@@ -60,6 +75,199 @@
             <param name="originalSql">原始SQL</param>
             <param name="errorMessage">错误信息</param>
             <returns>AI响应（包含优化后的SQL和执行结果）</returns>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Interface.IConversationStateManager">
+            <summary>
+            对话状态管理器接口
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IConversationStateManager.UpdateContextAsync(System.String,System.String,System.String,System.String,System.Collections.Generic.List{System.Collections.Generic.Dictionary{System.String,System.Object}})">
+            <summary>
+            更新对话上下文
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userMessage">用户消息</param>
+            <param name="assistantMessage">助手回复</param>
+            <param name="sql">生成的SQL</param>
+            <param name="result">执行结果</param>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IConversationStateManager.ResolveCoreferencesAsync(System.String,System.String)">
+            <summary>
+            解析代词和省略引用
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userMessage">用户消息</param>
+            <returns>解析后的消息</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IConversationStateManager.AnalyzeFollowupQueryAsync(System.String,System.String)">
+            <summary>
+            分析后续查询类型
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userMessage">用户消息</param>
+            <returns>查询类型</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IConversationStateManager.ProcessIncrementalQueryAsync(System.String,System.String,Text2Sql.Net.Domain.Service.FollowupQueryType)">
+            <summary>
+            处理增量查询
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userMessage">用户消息</param>
+            <param name="queryType">查询类型</param>
+            <returns>处理后的查询消息</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IConversationStateManager.GetContextAsync(System.String)">
+            <summary>
+            获取对话上下文
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <returns>对话上下文</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IConversationStateManager.ClearContextAsync(System.String)">
+            <summary>
+            清理对话上下文
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Interface.IExecutionFeedbackOptimizer">
+            <summary>
+            执行反馈优化器接口
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IExecutionFeedbackOptimizer.OptimizeWithFeedbackAsync(System.String,System.String,System.String,System.String,System.Int32)">
+            <summary>
+            基于执行反馈进行迭代优化
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userMessage">用户查询</param>
+            <param name="schemaInfo">Schema信息</param>
+            <param name="initialSql">初始SQL</param>
+            <param name="maxIterations">最大迭代次数</param>
+            <returns>优化结果</returns>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Interface.IIntelligentSchemaLinkingService">
+            <summary>
+            智能Schema Linking服务接口
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IIntelligentSchemaLinkingService.GetRelevantSchemaAsync(System.String,System.String,System.Double,System.Int32)">
+            <summary>
+            获取与用户查询相关的Schema信息
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userMessage">用户查询</param>
+            <param name="relevanceThreshold">相关性阈值</param>
+            <param name="maxTables">最多返回表数量</param>
+            <returns>相关Schema信息</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IIntelligentSchemaLinkingService.BuildSchemaGraphAsync(System.String)">
+            <summary>
+            构建Schema图结构
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <returns>Schema图</returns>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Interface.IMonitoringAndEvaluationService">
+            <summary>
+            监控与评估服务接口
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IMonitoringAndEvaluationService.EvaluateQueryQualityAsync(Text2Sql.Net.Domain.Service.QueryEvaluationRequest)">
+            <summary>
+            评估查询质量
+            </summary>
+            <param name="evaluationRequest">评估请求</param>
+            <returns>评估结果</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IMonitoringAndEvaluationService.RecordQueryMetricAsync(Text2Sql.Net.Domain.Service.QueryExecutionMetric)">
+            <summary>
+            记录查询执行指标
+            </summary>
+            <param name="queryMetric">查询指标</param>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IMonitoringAndEvaluationService.RecordUserBehaviorAsync(Text2Sql.Net.Domain.Service.UserBehavior)">
+            <summary>
+            记录用户行为
+            </summary>
+            <param name="userBehavior">用户行为</param>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IMonitoringAndEvaluationService.GetSystemPerformanceReportAsync(Text2Sql.Net.Domain.Service.TimeRange)">
+            <summary>
+            获取系统性能报告
+            </summary>
+            <param name="timeRange">时间范围</param>
+            <returns>性能报告</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IMonitoringAndEvaluationService.GetUserBehaviorReportAsync(Text2Sql.Net.Domain.Service.TimeRange)">
+            <summary>
+            获取用户行为分析报告
+            </summary>
+            <param name="timeRange">时间范围</param>
+            <returns>用户行为报告</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IMonitoringAndEvaluationService.CleanupExpiredDataAsync">
+            <summary>
+            清理过期数据
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Interface.IPerformanceOptimizationService">
+            <summary>
+            性能优化服务接口
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IPerformanceOptimizationService.GetCachedResultAsync``1(System.String,System.Func{System.Threading.Tasks.Task{``0}},Text2Sql.Net.Domain.Service.CachePolicy)">
+            <summary>
+            智能缓存查询结果
+            </summary>
+            <param name="cacheKey">缓存键</param>
+            <param name="queryFunc">查询函数</param>
+            <param name="cachePolicy">缓存策略</param>
+            <returns>查询结果</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IPerformanceOptimizationService.AnalyzeQueryComplexityAsync(System.String,System.String)">
+            <summary>
+            分析查询复杂度
+            </summary>
+            <param name="userMessage">用户查询</param>
+            <param name="schemaInfo">Schema信息</param>
+            <returns>复杂度分析结果</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IPerformanceOptimizationService.ProcessInParallelAsync``1(System.Collections.Generic.IEnumerable{System.Func{System.Threading.Tasks.Task{``0}}},System.Int32)">
+            <summary>
+            并行处理多个查询任务
+            </summary>
+            <param name="tasks">任务列表</param>
+            <param name="maxParallelism">最大并行度</param>
+            <returns>处理结果</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IPerformanceOptimizationService.GetQueryMetricsAsync(System.String)">
+            <summary>
+            获取查询性能指标
+            </summary>
+            <param name="queryId">查询ID</param>
+            <returns>性能指标</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IPerformanceOptimizationService.UpdateQueryMetricsAsync(System.String,System.TimeSpan,System.Int32,System.Boolean)">
+            <summary>
+            更新查询性能指标
+            </summary>
+            <param name="queryId">查询ID</param>
+            <param name="executionTime">执行时间</param>
+            <param name="resultSize">结果大小</param>
+            <param name="cacheHit">是否命中缓存</param>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IPerformanceOptimizationService.CleanupExpiredCacheAsync">
+            <summary>
+            清理过期缓存
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IPerformanceOptimizationService.GenerateCacheKey(System.String,System.Object[])">
+            <summary>
+            生成缓存键
+            </summary>
+            <param name="prefix">前缀</param>
+            <param name="parameters">参数</param>
+            <returns>缓存键</returns>
         </member>
         <member name="T:Text2Sql.Net.Domain.Interface.ISchemaTrainingService">
             <summary>
@@ -123,12 +331,115 @@
             Excel 文件（导入为本地 SQLite 后使用）
             </summary>
         </member>
+        <member name="T:Text2Sql.Net.Domain.Service.AdvancedPromptService">
+            <summary>
+            高级Prompt工程服务
+            实现Few-shot Learning、链式思考和个性化Prompt生成
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.CreateProgressivePromptAsync(System.String,System.String,System.String,Text2Sql.Net.Domain.Service.UserProfile)">
+            <summary>
+            创建渐进式复杂度的Few-shot Prompt
+            </summary>
+            <param name="userMessage">用户查询</param>
+            <param name="schemaInfo">Schema信息</param>
+            <param name="dbType">数据库类型</param>
+            <param name="userProfile">用户画像（可选）</param>
+            <returns>优化后的Prompt</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.SelectBestExamplesAsync(System.String,System.String,System.Int32)">
+            <summary>
+            基于相似度选择最佳示例
+            </summary>
+            <param name="userMessage">用户查询</param>
+            <param name="schemaInfo">Schema信息</param>
+            <param name="k">返回示例数量</param>
+            <returns>最佳示例列表</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.GenerateReasoningChainAsync(System.String,System.String)">
+            <summary>
+            生成链式思考推理链
+            </summary>
+            <param name="userMessage">用户查询</param>
+            <param name="schemaInfo">Schema信息</param>
+            <returns>推理链</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.BuildProgressivePrompt(System.String,System.String,System.String,System.Collections.Generic.List{Text2Sql.Net.Domain.Service.QueryExample},Text2Sql.Net.Domain.Service.ChainOfThoughtSteps,Text2Sql.Net.Domain.Service.UserProfile)">
+            <summary>
+            构建渐进式复杂度Prompt
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.CreateBasicPrompt(System.String,System.String,System.String)">
+            <summary>
+            创建基础Prompt（后备方案）
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.AnalyzeIntent(System.String)">
+            <summary>
+            分析查询意图
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.ExtractEntities(System.String,System.String)">
+            <summary>
+            提取关键实体
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.SelectRelevantTables(System.Collections.Generic.List{System.String},System.String)">
+            <summary>
+            选择相关表
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.AnalyzeTableRelationships(System.Collections.Generic.List{System.String},System.String)">
+            <summary>
+            分析表关系
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.PlanSqlStructure(System.String,System.Collections.Generic.List{System.String},System.Collections.Generic.List{System.String})">
+            <summary>
+            规划SQL结构
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.CalculateTextSimilarity(System.String,System.String)">
+            <summary>
+            计算文本相似度（简单实现）
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.CalculateSchemaSimilarity(System.String,System.String)">
+            <summary>
+            计算Schema相似度
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.IsStopWord(System.String)">
+            <summary>
+            判断是否为停用词
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.InitializeExamplePool">
+            <summary>
+            初始化示例池
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.QueryExample">
+            <summary>
+            查询示例
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.ChainOfThoughtSteps">
+            <summary>
+            链式思考步骤
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.UserProfile">
+            <summary>
+            用户画像
+            </summary>
+        </member>
         <member name="T:Text2Sql.Net.Domain.Service.ChatService">
             <summary>
             聊天服务实现
             </summary>
         </member>
-        <member name="M:Text2Sql.Net.Domain.Service.ChatService.#ctor(Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.IDatabaseConnectionConfigRepository,Text2Sql.Net.Repositories.Text2Sql.ChatHistory.IChatMessageRepository,Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.IDatabaseSchemaRepository,Text2Sql.Net.Domain.Interface.ISqlExecutionService,Text2Sql.Net.Domain.Interface.ISemanticService,Microsoft.SemanticKernel.Kernel,Microsoft.Extensions.Logging.ILogger{Text2Sql.Net.Domain.Service.ChatService})">
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.#ctor(Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.IDatabaseConnectionConfigRepository,Text2Sql.Net.Repositories.Text2Sql.ChatHistory.IChatMessageRepository,Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.IDatabaseSchemaRepository,Text2Sql.Net.Domain.Interface.ISqlExecutionService,Text2Sql.Net.Domain.Interface.ISemanticService,Text2Sql.Net.Domain.Interface.IIntelligentSchemaLinkingService,Text2Sql.Net.Domain.Interface.IAdvancedPromptService,Text2Sql.Net.Domain.Interface.IExecutionFeedbackOptimizer,Text2Sql.Net.Domain.Interface.IConversationStateManager,Microsoft.SemanticKernel.Kernel,Microsoft.Extensions.Logging.ILogger{Text2Sql.Net.Domain.Service.ChatService})">
             <summary>
             构造函数
             </summary>
@@ -161,10 +472,18 @@
             <param name="allTables">所有表列表</param>
             <returns>包含关联表的扩展列表</returns>
         </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.GenerateSqlWithAdvancedPromptAsync(System.String)">
+            <summary>
+            使用高级Prompt生成SQL查询
+            </summary>
+            <param name="optimizedPrompt">优化后的Prompt</param>
+            <returns>生成的SQL查询</returns>
+        </member>
         <member name="M:Text2Sql.Net.Domain.Service.ChatService.GenerateSqlQueryAsync(System.String,System.String,System.String)">
             <summary>
-            根据用户问题和Schema信息生成SQL查询
+            根据用户问题和Schema信息生成SQL查询（兼容旧版本）
             </summary>
+            <param name="dbType">数据库类型</param>
             <param name="userMessage">用户问题</param>
             <param name="schemaInfo">Schema信息</param>
             <returns>生成的SQL查询</returns>
@@ -193,6 +512,748 @@
             <param name="connectionId">数据库连接ID</param>
             <param name="errorMessage">错误信息</param>
             <returns>错误响应消息</returns>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.ConversationStateManager">
+            <summary>
+            对话状态管理器
+            处理多轮对话和上下文理解
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.UpdateContextAsync(System.String,System.String,System.String,System.String,System.Collections.Generic.List{System.Collections.Generic.Dictionary{System.String,System.Object}})">
+            <summary>
+            更新对话上下文
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userMessage">用户消息</param>
+            <param name="assistantMessage">助手回复</param>
+            <param name="sql">生成的SQL</param>
+            <param name="result">执行结果</param>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ResolveCoreferencesAsync(System.String,System.String)">
+            <summary>
+            解析代词和省略引用
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userMessage">用户消息</param>
+            <returns>解析后的消息</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.AnalyzeFollowupQueryAsync(System.String,System.String)">
+            <summary>
+            分析后续查询类型
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userMessage">用户消息</param>
+            <returns>查询类型</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ProcessIncrementalQueryAsync(System.String,System.String,Text2Sql.Net.Domain.Service.FollowupQueryType)">
+            <summary>
+            处理增量查询
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userMessage">用户消息</param>
+            <param name="queryType">查询类型</param>
+            <returns>处理后的查询消息</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.GetContextAsync(System.String)">
+            <summary>
+            获取对话上下文
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <returns>对话上下文</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ClearContextAsync(System.String)">
+            <summary>
+            清理对话上下文
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.SummarizeResult(System.Collections.Generic.List{System.Collections.Generic.Dictionary{System.String,System.Object}})">
+            <summary>
+            总结查询结果
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ExtractEntities(System.String)">
+            <summary>
+            提取实体
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.UpdateActiveFilters(Text2Sql.Net.Domain.Service.ConversationContext,System.String,System.String)">
+            <summary>
+            更新活跃过滤条件
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ResolvePronouns(System.String,Text2Sql.Net.Domain.Service.ConversationContext)">
+            <summary>
+            解析代词
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.FindRecentEntity(Text2Sql.Net.Domain.Service.ConversationContext)">
+            <summary>
+            查找最近的实体
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.IsIncompleteQuery(System.String)">
+            <summary>
+            判断是否为不完整查询
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.AddImplicitContext(System.String,Text2Sql.Net.Domain.Service.ConversationContext)">
+            <summary>
+            添加隐式上下文
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ResolveRelativeTimeReferences(System.String,Text2Sql.Net.Domain.Service.ConversationContext)">
+            <summary>
+            解析相对时间引用
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ResolveContextualQueries(System.String,Text2Sql.Net.Domain.Service.ConversationContext)">
+            <summary>
+            解析上下文相关查询
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ContainsFilterWords(System.String)">
+            <summary>
+            检查是否包含过滤词汇
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ContainsAggregationWords(System.String)">
+            <summary>
+            检查是否包含聚合词汇
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ContainsColumnExpansionWords(System.String)">
+            <summary>
+            检查是否包含列扩展词汇
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ContainsSortingWords(System.String)">
+            <summary>
+            检查是否包含排序词汇
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ContainsPronouns(System.String)">
+            <summary>
+            检查是否包含代词
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ContainsComparisonWords(System.String)">
+            <summary>
+            检查是否包含比较词汇
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ContainsTableReference(System.String)">
+            <summary>
+            检查是否包含表引用
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ExtractTableContext(System.String)">
+            <summary>
+            提取表上下文
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ProcessFilterRefinement(System.String,Text2Sql.Net.Domain.Service.ConversationTurn,Text2Sql.Net.Domain.Service.ConversationContext)">
+            <summary>
+            处理过滤精化
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ProcessAggregationChange(System.String,Text2Sql.Net.Domain.Service.ConversationTurn,Text2Sql.Net.Domain.Service.ConversationContext)">
+            <summary>
+            处理聚合变更
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ProcessColumnExpansion(System.String,Text2Sql.Net.Domain.Service.ConversationTurn,Text2Sql.Net.Domain.Service.ConversationContext)">
+            <summary>
+            处理列扩展
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ProcessSortingChange(System.String,Text2Sql.Net.Domain.Service.ConversationTurn,Text2Sql.Net.Domain.Service.ConversationContext)">
+            <summary>
+            处理排序变更
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ConversationStateManager.ProcessComparison(System.String,Text2Sql.Net.Domain.Service.ConversationTurn,Text2Sql.Net.Domain.Service.ConversationContext)">
+            <summary>
+            处理比较查询
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.ConversationContext">
+            <summary>
+            对话上下文
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.ConversationTurn">
+            <summary>
+            对话轮次
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.FollowupQueryType">
+            <summary>
+            后续查询类型
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer">
+            <summary>
+            执行反馈优化器
+            通过执行结果分析来优化SQL查询
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.OptimizeWithFeedbackAsync(System.String,System.String,System.String,System.String,System.Int32)">
+            <summary>
+            基于执行反馈进行迭代优化
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userMessage">用户查询</param>
+            <param name="schemaInfo">Schema信息</param>
+            <param name="initialSql">初始SQL</param>
+            <param name="maxIterations">最大迭代次数</param>
+            <returns>优化结果</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.ValidateResultAsync(System.Collections.Generic.List{System.Collections.Generic.Dictionary{System.String,System.Object}},System.String,System.String)">
+            <summary>
+            验证查询结果的合理性
+            </summary>
+            <param name="result">查询结果</param>
+            <param name="userMessage">用户查询</param>
+            <param name="schemaInfo">Schema信息</param>
+            <returns>验证结果</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.CheckResultSizeReasonableness(System.Collections.Generic.List{System.Collections.Generic.Dictionary{System.String,System.Object}},System.String)">
+            <summary>
+            检查结果大小合理性
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.CheckDataTypeConsistency(System.Collections.Generic.List{System.Collections.Generic.Dictionary{System.String,System.Object}})">
+            <summary>
+            检查数据类型一致性
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.CheckBusinessLogicConsistencyAsync(System.Collections.Generic.List{System.Collections.Generic.Dictionary{System.String,System.Object}},System.String,System.String)">
+            <summary>
+            检查业务逻辑一致性
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.CheckNullHandling(System.Collections.Generic.List{System.Collections.Generic.Dictionary{System.String,System.Object}},System.String)">
+            <summary>
+            检查空值处理
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.AnalyzeExecutionError(System.String,System.String,System.String)">
+            <summary>
+            分析执行错误
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.ClassifyError(System.String)">
+            <summary>
+            错误分类
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.GenerateFixSuggestion(System.String,System.String,System.String)">
+            <summary>
+            生成修复建议
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.FixSqlErrorAsync(System.String,System.String,System.String,Text2Sql.Net.Domain.Service.ErrorAnalysis)">
+            <summary>
+            基于错误分析修复SQL
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.RefineBasedOnResultFeedbackAsync(System.String,System.String,System.String,System.String)">
+            <summary>
+            基于结果反馈优化SQL
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.GenerateResultFeedback(Text2Sql.Net.Domain.Service.ValidationResult,System.String)">
+            <summary>
+            生成结果反馈信息
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.CheckDescendingOrder(System.Collections.Generic.List{System.Collections.Generic.Dictionary{System.String,System.Object}})">
+            <summary>
+            检查降序排列
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.CheckAscendingOrder(System.Collections.Generic.List{System.Collections.Generic.Dictionary{System.String,System.Object}})">
+            <summary>
+            检查升序排列
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.CheckRecentTimeOrder(System.Collections.Generic.List{System.Collections.Generic.Dictionary{System.String,System.Object}})">
+            <summary>
+            检查时间排序
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.FindNumericColumns(System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            查找数值列
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.FindTimeColumns(System.Collections.Generic.Dictionary{System.String,System.Object})">
+            <summary>
+            查找时间列
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.IsNumericType(System.Type)">
+            <summary>
+            判断是否为数值类型
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.IsNumericTypeConversion(System.Type,System.Type)">
+            <summary>
+            判断是否为数值类型转换
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ExecutionFeedbackOptimizer.CleanSqlResult(System.String)">
+            <summary>
+            清理SQL结果
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.OptimizationResult">
+            <summary>
+            优化结果
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.OptimizationStep">
+            <summary>
+            优化步骤
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.ExecutionResultInfo">
+            <summary>
+            执行结果信息
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.ValidationResult">
+            <summary>
+            验证结果
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.ErrorAnalysis">
+            <summary>
+            错误分析
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.IntelligentSchemaLinkingService">
+            <summary>
+            智能Schema Linking服务
+            实现基于语义相似度的智能表结构匹配
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.IntelligentSchemaLinkingService.GetRelevantSchemaAsync(System.String,System.String,System.Double,System.Int32)">
+            <summary>
+            智能Schema Linking - 基于语义相似度匹配
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userMessage">用户查询</param>
+            <param name="relevanceThreshold">相关性阈值</param>
+            <param name="maxTables">最多返回表数量</param>
+            <returns>相关Schema信息</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.IntelligentSchemaLinkingService.PerformDynamicThresholdSearch(Microsoft.SemanticKernel.Memory.SemanticTextMemory,System.String,System.String,System.Collections.Generic.List{Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo},System.Double,System.Int32)">
+            <summary>
+            动态阈值搜索策略
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.IntelligentSchemaLinkingService.InferRelatedTablesAsync(System.Collections.Generic.List{Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo},System.Collections.Generic.List{Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo})">
+            <summary>
+            推断并添加相关联的表
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.IntelligentSchemaLinkingService.GenerateMatchingDetailsAsync(System.String,System.Collections.Generic.List{Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo},Microsoft.SemanticKernel.Memory.SemanticTextMemory,System.String)">
+            <summary>
+            生成匹配详情
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.IntelligentSchemaLinkingService.BuildSchemaGraphAsync(System.String)">
+            <summary>
+            基于图神经网络的Schema结构分析
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.IntelligentSchemaLinkingService.ExtractTableFeatures(Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo)">
+            <summary>
+            提取表特征
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.IntelligentSchemaLinkingService.ExtractColumnFeatures(Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ColumnInfo)">
+            <summary>
+            提取列特征
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.IntelligentSchemaLinkingService.InferTableType(Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo)">
+            <summary>
+            推断表类型
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.IntelligentSchemaLinkingService.InferSemanticType(Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ColumnInfo)">
+            <summary>
+            推断语义类型
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.SchemaLinkingResult">
+            <summary>
+            Schema Linking结果
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.SchemaMatchDetail">
+            <summary>
+            Schema匹配详情
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.SchemaGraph">
+            <summary>
+            Schema图结构
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.GraphNode">
+            <summary>
+            图节点
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.GraphEdge">
+            <summary>
+            图边
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService">
+            <summary>
+            监控与评估服务
+            提供系统性能监控、查询质量评估和用户行为分析
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.EvaluateQueryQualityAsync(Text2Sql.Net.Domain.Service.QueryEvaluationRequest)">
+            <summary>
+            评估查询质量
+            </summary>
+            <param name="evaluationRequest">评估请求</param>
+            <returns>评估结果</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.RecordQueryMetricAsync(Text2Sql.Net.Domain.Service.QueryExecutionMetric)">
+            <summary>
+            记录查询执行指标
+            </summary>
+            <param name="queryMetric">查询指标</param>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.RecordUserBehaviorAsync(Text2Sql.Net.Domain.Service.UserBehavior)">
+            <summary>
+            记录用户行为
+            </summary>
+            <param name="userBehavior">用户行为</param>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.GetSystemPerformanceReportAsync(Text2Sql.Net.Domain.Service.TimeRange)">
+            <summary>
+            获取系统性能报告
+            </summary>
+            <param name="timeRange">时间范围</param>
+            <returns>性能报告</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.GetUserBehaviorReportAsync(Text2Sql.Net.Domain.Service.TimeRange)">
+            <summary>
+            获取用户行为分析报告
+            </summary>
+            <param name="timeRange">时间范围</param>
+            <returns>用户行为报告</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.CleanupExpiredDataAsync">
+            <summary>
+            清理过期数据
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.EvaluateSyntaxAccuracy(Text2Sql.Net.Domain.Service.QueryEvaluationRequest)">
+            <summary>
+            评估语法准确性
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.EvaluateSemanticAccuracyAsync(Text2Sql.Net.Domain.Service.QueryEvaluationRequest)">
+            <summary>
+            评估语义准确性
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.EvaluateExecutionPerformance(Text2Sql.Net.Domain.Service.QueryEvaluationRequest)">
+            <summary>
+            评估执行性能
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.EvaluateResultQuality(Text2Sql.Net.Domain.Service.QueryEvaluationRequest)">
+            <summary>
+            评估结果质量
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.EvaluateUserSatisfaction(Text2Sql.Net.Domain.Service.QueryEvaluationRequest)">
+            <summary>
+            评估用户满意度
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.CalculateOverallScore(Text2Sql.Net.Domain.Service.QueryQualityMetrics)">
+            <summary>
+            计算综合评分
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.GenerateImprovementSuggestions(Text2Sql.Net.Domain.Service.QueryQualityMetrics)">
+            <summary>
+            生成改进建议
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.CollectSystemMetrics(System.Object)">
+            <summary>
+            定期收集系统指标
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.GetCpuUsage">
+            <summary>
+            获取CPU使用率（简化实现）
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.GetActiveConnections">
+            <summary>
+            获取活跃连接数（简化实现）
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.CalculateSystemHealth(System.Collections.Generic.List{Text2Sql.Net.Domain.Service.SystemMetrics})">
+            <summary>
+            计算系统健康度
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.AnalyzePerformanceTrend(System.Collections.Generic.List{Text2Sql.Net.Domain.Service.SystemMetrics})">
+            <summary>
+            分析性能趋势
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.GenerateSystemAlerts(Text2Sql.Net.Domain.Service.SystemPerformanceReport)">
+            <summary>
+            生成系统告警
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.GetMostPopularQueryTypes(System.Collections.Generic.List{Text2Sql.Net.Domain.Service.UserBehaviorMetrics})">
+            <summary>
+            获取最受欢迎的查询类型
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.MonitoringAndEvaluationService.CalculateUserEngagementLevel(System.Collections.Generic.List{Text2Sql.Net.Domain.Service.UserBehaviorMetrics})">
+            <summary>
+            计算用户参与度
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.QueryEvaluationRequest">
+            <summary>
+            查询评估请求
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.QueryEvaluationResult">
+            <summary>
+            查询评估结果
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.QueryQualityMetrics">
+            <summary>
+            查询质量指标
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.QueryExecutionMetric">
+            <summary>
+            查询执行指标
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.UserBehavior">
+            <summary>
+            用户行为
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.SystemMetrics">
+            <summary>
+            系统指标
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.UserBehaviorMetrics">
+            <summary>
+            用户行为指标
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.SystemPerformanceReport">
+            <summary>
+            系统性能报告
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.UserBehaviorReport">
+            <summary>
+            用户行为报告
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.SystemAlert">
+            <summary>
+            系统告警
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.TimeRange">
+            <summary>
+            时间范围
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.SystemHealth">
+            <summary>
+            系统健康状态
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.PerformanceTrend">
+            <summary>
+            性能趋势
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.UserEngagementLevel">
+            <summary>
+            用户参与度级别
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.AlertLevel">
+            <summary>
+            告警级别
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.PerformanceOptimizationService">
+            <summary>
+            性能优化服务
+            包括缓存策略、并行处理、查询复杂度分析等
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.GetCachedResultAsync``1(System.String,System.Func{System.Threading.Tasks.Task{``0}},Text2Sql.Net.Domain.Service.CachePolicy)">
+            <summary>
+            智能缓存查询结果
+            </summary>
+            <param name="cacheKey">缓存键</param>
+            <param name="queryFunc">查询函数</param>
+            <param name="cachePolicy">缓存策略</param>
+            <returns>查询结果</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.AnalyzeQueryComplexityAsync(System.String,System.String)">
+            <summary>
+            分析查询复杂度
+            </summary>
+            <param name="userMessage">用户查询</param>
+            <param name="schemaInfo">Schema信息</param>
+            <returns>复杂度分析结果</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.ProcessInParallelAsync``1(System.Collections.Generic.IEnumerable{System.Func{System.Threading.Tasks.Task{``0}}},System.Int32)">
+            <summary>
+            并行处理多个查询任务
+            </summary>
+            <param name="tasks">任务列表</param>
+            <param name="maxParallelism">最大并行度</param>
+            <returns>处理结果</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.GetQueryMetricsAsync(System.String)">
+            <summary>
+            获取查询性能指标
+            </summary>
+            <param name="queryId">查询ID</param>
+            <returns>性能指标</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.UpdateQueryMetricsAsync(System.String,System.TimeSpan,System.Int32,System.Boolean)">
+            <summary>
+            更新查询性能指标
+            </summary>
+            <param name="queryId">查询ID</param>
+            <param name="executionTime">执行时间</param>
+            <param name="resultSize">结果大小</param>
+            <param name="cacheHit">是否命中缓存</param>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.CleanupExpiredCacheAsync">
+            <summary>
+            清理过期缓存
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.GenerateCacheKey(System.String,System.Object[])">
+            <summary>
+            生成缓存键
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.DetermineCachePolicy``1(System.String,``0)">
+            <summary>
+            确定缓存策略
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.CalculateObjectSize``1(``0)">
+            <summary>
+            计算对象大小（简化实现）
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.CalculateBasicComplexity(System.String)">
+            <summary>
+            计算基础复杂度
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.EstimateTableCount(System.String,System.String)">
+            <summary>
+            估计表数量
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.EstimateJoinComplexity(System.String,System.Int32)">
+            <summary>
+            估计JOIN复杂度
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.EstimateAggregationComplexity(System.String)">
+            <summary>
+            估计聚合复杂度
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.EstimateSubqueryComplexity(System.String)">
+            <summary>
+            估计子查询复杂度
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.EstimateTemporalComplexity(System.String)">
+            <summary>
+            估计时间复杂度
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.CalculateOverallComplexity(Text2Sql.Net.Domain.Service.ComplexityAnalysis)">
+            <summary>
+            计算总体复杂度
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.DetermineProcessingStrategy(Text2Sql.Net.Domain.Service.ComplexityAnalysis)">
+            <summary>
+            确定处理策略
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.UpdateCacheHitMetrics(System.String)">
+            <summary>
+            更新缓存命中指标
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.PerformanceOptimizationService.UpdateCacheMissMetrics(System.String)">
+            <summary>
+            更新缓存未命中指标
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.CacheItemPriority">
+            <summary>
+            缓存优先级
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.CachePolicy">
+            <summary>
+            缓存策略
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.CacheItem`1">
+            <summary>
+            缓存项
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.ComplexityAnalysis">
+            <summary>
+            复杂度分析结果
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.ProcessingStrategy">
+            <summary>
+            处理策略
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.QueryMetrics">
+            <summary>
+            查询性能指标
+            </summary>
         </member>
         <member name="T:Text2Sql.Net.Domain.Service.SchemaTrainingService">
             <summary>

@@ -1,6 +1,28 @@
 {
   "schema": 1,
   "description": "优化SQL查询",
+  "input_variables": [
+    {
+      "name": "schemaInfo",
+      "description": "数据库表结构信息",
+      "required": true
+    },
+    {
+      "name": "userMessage",
+      "description": "用户原始问题",
+      "required": true
+    },
+    {
+      "name": "originalSql",
+      "description": "原始SQL查询",
+      "required": true
+    },
+    {
+      "name": "errorMessage",
+      "description": "执行错误信息",
+      "required": true
+    }
+  ],
   "execution_settings": {
     "default": {
       "temperature": 0.1

@@ -1,6 +1,13 @@
 {
   "schema": 1,
   "description": "检查sql是否查询语句",
+  "input_variables": [
+    {
+      "name": "sql",
+      "description": "需要检查的SQL语句",
+      "required": true
+    }
+  ],
   "execution_settings": {
     "default": {
       "temperature": 0.1
