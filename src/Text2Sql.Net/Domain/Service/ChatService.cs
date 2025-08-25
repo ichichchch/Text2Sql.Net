@@ -87,7 +87,7 @@ namespace Text2Sql.Net.Domain.Service
                 return false;
             }
 
-            return await _chatRepository.InsertAsync(message);
+            return await _chatRepository.InsertOrUpdateAsync(message);
         }
 
         /// <inheritdoc/>

@@ -73,10 +73,11 @@
             <param name="sql">要复制的SQL语句</param>
             <returns>异步任务</returns>
         </member>
-        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.ShowChartAsync">
+        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.ShowChartForMessage(Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage)">
             <summary>
-            打开图表预览并渲染
+            为特定消息显示图表
             </summary>
+            <param name="message">包含查询结果的消息</param>
         </member>
         <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.ShowClearConfirm">
             <summary>

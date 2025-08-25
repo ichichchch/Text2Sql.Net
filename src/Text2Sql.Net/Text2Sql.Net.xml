@@ -1710,9 +1710,14 @@
             创建时间
             </summary>
         </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage.QueryResultJson">
+            <summary>
+            查询结果（JSON格式持久化）
+            </summary>
+        </member>
         <member name="P:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage.QueryResult">
             <summary>
-            查询结果（非持久化）
+            查询结果（非持久化，用于运行时处理）
             </summary>
         </member>
         <member name="T:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessageRepository">

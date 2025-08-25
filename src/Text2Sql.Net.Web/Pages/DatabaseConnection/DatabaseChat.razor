@@ -42,49 +42,78 @@
 
                         <AntList TItem="ChatMessage"
                                  DataSource="_chatHistory"
-                                 ItemLayout="ListItemLayout.Horizontal">
+                                 ItemLayout="ListItemLayout.Horizontal"
+                                 Context="message">
 
                             <ListItem>
-                                <Card Bordered="false" Class="@(context.IsUser ? "user-message" : "assistant-message")">
+                                <Card Bordered="false" Class="@(message.IsUser ? "user-message" : "assistant-message")">
                                     <div class="message-header">
-                                        <strong>@(context.IsUser ? "帅小伙" : "AI")</strong>
-                                        <span class="message-time">@context.CreateTime.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                                        <strong>@(message.IsUser ? "帅小伙" : "AI")</strong>
+                                        <span class="message-time">@message.CreateTime.ToString("yyyy-MM-dd HH:mm:ss")</span>
                                     </div>
                                     <div class="message-content">
-                                        @context.Message
+                                        @message.Message
                                     </div>
-                                    @if (!context.IsUser && !string.IsNullOrEmpty(context.SqlQuery))
+                                    @if (!message.IsUser && !string.IsNullOrEmpty(message.SqlQuery))
                                     {
                                         <div class="sql-content">
                                             <Divider Orientation="left">生成的SQL</Divider>
-                                            <pre class="language-sql">@context.SqlQuery</pre>
+                                            <pre class="language-sql">@message.SqlQuery</pre>
                                             <div class="sql-actions">
-                                                <Button Type="@ButtonType.Link" OnClick="async () => await CopySqlToClipboard(context.SqlQuery)">
+                                                <Button Type="@ButtonType.Link" OnClick="async () => await CopySqlToClipboard(message.SqlQuery)">
                                                     <Icon Type="copy" /> 复制
                                                 </Button>
-                                                <Button Type="@ButtonType.Link" OnClick="async () => await ExecuteSqlAsync(context.SqlQuery)">
+                                                <Button Type="@ButtonType.Link" OnClick="async () => await ExecuteSqlAsync(message.SqlQuery)">
                                                     <Icon Type="play-circle" /> 执行
                                                 </Button>
-                                                @if (_sqlResult != null && context.SqlQuery == _lastExecutedSql)
+                                                @if (message.QueryResult != null && message.QueryResult.Count > 0)
                                                 {
-                                                    <Button Type="@ButtonType.Link" OnClick="@(() => _isResultModalVisible = true)">
-                                                        <Icon Type="table" /> 查看结果 (@(_sqlResult.Count) 条)
+                                                    <Button Type="@ButtonType.Link" OnClick="async () => await ShowChartForMessage(message)">
+                                                        <Icon Type="bar-chart" /> 查看图表
                                                     </Button>
-                                                     <Button Type="@ButtonType.Link" OnClick="@ShowChartAsync">
-                                                         <Icon Type="bar-chart" /> 查看图表
-                                                     </Button>
-                                                }
-                                                @if (context.QueryResult != null && context.QueryResult.Count > 0)
-                                                {
                                                     <Tag Color="green" Style="margin-left: 8px;">
-                                                        <Icon Type="check-circle" /> 已自动执行
+                                                        <Icon Type="check-circle" /> 已自动执行 (@(message.QueryResult.Count) 条)
                                                     </Tag>
                                                 }
                                             </div>
-                                            @if (!string.IsNullOrEmpty(context.ExecutionError))
+                                            @if (!string.IsNullOrEmpty(message.ExecutionError))
                                             {
-                                                <Alert Type="@AlertType.Error" Message="执行错误" Description="@context.ExecutionError" ShowIcon="true" />
+                                                <Alert Type="@AlertType.Error" Message="执行错误" Description="@message.ExecutionError" ShowIcon="true" />
                                             }
+                                        </div>
+                                    }
+                                    @if (!message.IsUser && message.QueryResult != null && message.QueryResult.Count > 0)
+                                    {
+                                        <div class="query-result-content">
+                                            <Divider Orientation="left">查询结果</Divider>
+                                            <div class="result-info">
+                                                <Space>
+                                                    <SpaceItem>
+                                                        <Tag Color="blue">@(message.QueryResult.Count) 条记录</Tag>
+                                                    </SpaceItem>
+                                                </Space>
+                                            </div>
+                                            <div class="inline-table-container">
+                                                <Table TItem="Dictionary<string, object>"
+                                                       DataSource="@message.QueryResult"
+                                                       Bordered
+                                                       Size="@TableSize.Small"
+                                                       ScrollX="600"
+                                                       ScrollY="300"
+                                                       PageSize="10">
+                                                    <ChildContent Context="tableRowData">
+                                                        @{
+                                                            var columns = message.QueryResult.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
+                                                        }
+                                                        @foreach (var column in columns)
+                                                        {
+                                                            <AntDesign.Column TData="Dictionary<string, object>" Title="@column" Width="120">
+                                                                @(tableRowData[column]?.ToString() ?? "")
+                                                            </AntDesign.Column>
+                                                        }
+                                                    </ChildContent>
+                                                </Table>
+                                            </div>
                                         </div>
                                     }
                                 </Card>
@@ -137,45 +166,7 @@
     </Content>
 </PageContainer>
 
-<Modal Title="查询结果"
-       Visible="@_isResultModalVisible"
-       OnOk="@(() => _isResultModalVisible = false)"
-       OnCancel="@(() => _isResultModalVisible = false)"
-       Style="width:80%"
-       Centered>
-    <div class="sql-result-modal">
-        @if (_sqlResult != null)
-        {
-            <div class="result-info">
-                <Space>
-                    <SpaceItem>查询结果</SpaceItem>
-                    <SpaceItem>
-                        <Tag Color="blue">@(_sqlResult.Count) 条记录</Tag>
-                    </SpaceItem>
-                </Space>
-            </div>
 
-            <Table TItem="Dictionary<string, object>"
-                   DataSource="@_sqlResult"
-                   Loading="@_loading"
-                   Bordered
-                   Size="@TableSize.Small"
-                   ScrollX="1000"
-                   ScrollY="500">
-                @foreach (var column in _sqlColumns)
-                {
-                    <AntDesign.Column TData="Dictionary<string, object>" Title="@column">
-                        @context[column]
-                    </AntDesign.Column>
-                }
-            </Table>
-        }
-        else
-        {
-            <Empty Description="@("无数据")" />
-        }
-    </div>
-</Modal>
 
 <Modal Title="图表预览"
        Visible="@_isChartModalVisible"
@@ -424,6 +415,49 @@
             background: #6c7b7f;
         }
 
+    .query-result-content {
+        margin-top: 12px;
+        background-color: #fafafa;
+        padding: 12px;
+        border-radius: 6px;
+        border-left: 3px solid #52c41a;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .inline-table-container {
+        margin-top: 8px;
+        background-color: white;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid #f0f0f0;
+    }
+
+        .inline-table-container .ant-table {
+            margin-bottom: 0;
+        }
+
+        .inline-table-container .ant-table-thead > tr > th {
+            background-color: #fafafa;
+            font-weight: 600;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .inline-table-container .ant-table-tbody > tr > td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f5f5f5;
+            word-break: break-word;
+            max-width: 200px;
+        }
+
+        .inline-table-container .ant-table-tbody > tr:hover > td {
+            background-color: #f5f5f5;
+        }
+
+        .inline-table-container .ant-pagination {
+            margin: 12px 0 0 0;
+            text-align: center;
+        }
+
     .sql-actions {
         display: flex;
         justify-content: flex-end;
@@ -449,52 +483,8 @@
             margin-right: 4px;
         }
 
-    .sql-result-container {
-        width: 100%;
-        border: 1px solid #f0f0f0;
-        border-radius: 4px;
-        padding: 12px;
-        background-color: #fafafa;
-        max-height: calc(50vh);
-        overflow-y: auto;
-        margin-bottom: 16px;
-        transition: all 0.3s ease;
-    }
-
-        .sql-result-container.collapsed {
-            max-height: 40px;
-            overflow: hidden;
-        }
-
-    .toggle-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-    }
-
-    .toggle-button {
-        display: flex;
-        align-items: center;
-    }
-
-        .toggle-button .anticon {
-            margin-right: 4px;
-        }
-
-    .result-actions {
-        display: flex;
-        justify-content: flex-end;
-        margin-bottom: 8px;
-    }
-
-    .sql-result-modal {
-        width: 100%;
-        padding: 0;
-    }
-
     .result-info {
-        margin-bottom: 16px;
+        margin-bottom: 8px;
     }
 
     .loading-hint {
@@ -536,11 +526,8 @@
     private string? _userMessage;
     private bool _loading = false;
     private bool _loadingHistory = false;
-    private List<Dictionary<string, object>>? _sqlResult;
-    private List<string> _sqlColumns = new List<string>();
     private ElementReference _chatContainerRef;
-    private bool _isResultModalVisible = false;
-    private string? _lastExecutedSql;
+    private ChatMessage? _currentChartMessage;
     private bool _isChartModalVisible = false;
     private bool _isClearConfirmVisible = false;
     private bool _clearingHistory = false;
@@ -550,7 +537,6 @@
         // 确保初始化时状态正确
         _loading = false;
         _loadingHistory = false;
-        _isResultModalVisible = false;
 
         try
         {
@@ -668,9 +654,6 @@
         {
             // 设置加载状态
             _loadingHistory = true;
-            _sqlResult = null;
-            _sqlColumns.Clear();
-            _isResultModalVisible = false;
 
             try
             {
@@ -748,7 +731,7 @@
                     _= MessageService.Info("SQL执行出错，尝试优化中...");
 
 
-                    response = await ChatService.OptimizeSqlAndExecuteAsync(_selectedConnectionId, currentMessage, response.SqlQuery, response.ExecutionError);
+                    response = await ChatService.OptimizeSqlAndExecuteAsync(_selectedConnectionId, currentMessage, response.SqlQuery ?? string.Empty, response.ExecutionError);
                 }
                 catch (Exception ex)
                 {
@@ -784,10 +767,7 @@
                         // 更新数据库中的聊天记录
                         await ChatService.SaveChatMessageAsync(response);
                         
-                        // 显示查询结果
-                        _sqlResult = autoResult;
-                        _sqlColumns = autoResult.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
-                        _lastExecutedSql = response.SqlQuery; // 记录SQL
+                        // 查询结果已经保存在response.QueryResult中
                         
                         _= MessageService.Success($"SQL自动执行成功，返回 {autoResult.Count} 条记录");
                     }
@@ -803,13 +783,7 @@
                 }
             }
             
-            // 显示查询结果（如果有）
-            if (response.QueryResult != null && response.QueryResult.Count > 0)
-            {
-                _sqlResult = response.QueryResult;
-                _sqlColumns = response.QueryResult.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
-                _lastExecutedSql = response.SqlQuery; // 记录SQL
-            }
+            // 查询结果已经在response中，界面会自动显示
         }
         catch (Exception ex)
         {
@@ -860,17 +834,12 @@
             }
             else if (result != null)
             {
-                _sqlResult = result;
-                _sqlColumns = result.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
-                _lastExecutedSql = sql; // 记录最后执行的SQL
-                _isResultModalVisible = true; // 自动显示结果模态框
                 _= MessageService.Success($"SQL执行成功，返回 {result.Count} 条记录");
+                // 结果会通过聊天消息显示，无需额外处理
             }
             else
             {
                 _= MessageService.Info("SQL执行成功，但未返回数据");
-                _sqlResult = null;
-                _sqlColumns.Clear();
             }
         }
         catch (Exception ex)
@@ -916,23 +885,25 @@
     }
 
     /// <summary>
-    /// 打开图表预览并渲染
+    /// 为特定消息显示图表
     /// </summary>
-    private async Task ShowChartAsync()
+    /// <param name="message">包含查询结果的消息</param>
+    private async Task ShowChartForMessage(ChatMessage message)
     {
-        if (_sqlResult == null || _sqlResult.Count == 0)
+        if (message?.QueryResult == null || message.QueryResult.Count == 0)
         {
             _= MessageService.Info("暂无可视化数据");
             return;
         }
 
+        _currentChartMessage = message;
         _isChartModalVisible = true;
         await InvokeAsync(StateHasChanged);
 
         try
         {
             await Task.Delay(50); // 等待DOM渲染
-            await JSRuntime.InvokeVoidAsync("echartsInterop.renderAutoChart", "chatChartContainer", _sqlResult);
+            await JSRuntime.InvokeVoidAsync("echartsInterop.renderAutoChart", "chatChartContainer", message.QueryResult);
         }
         catch (Exception ex)
         {
@@ -949,6 +920,7 @@
     private async Task OnChartCancel()
     {
         _isChartModalVisible = false;
+        _currentChartMessage = null;
         try
         {
             await JSRuntime.InvokeVoidAsync("echartsInterop.dispose", "chatChartContainer");
@@ -996,11 +968,6 @@
             if (success)
             {
                 _chatHistory.Clear();
-                _sqlResult = null;
-                _sqlColumns.Clear();
-                _lastExecutedSql = null;
-                _isResultModalVisible = false;
-                
                 _= MessageService.Success("聊天记录已清空");
             }
             else
