@@ -1,4 +1,5 @@
 @page "/database-chat"
+@page "/database-chat/{ConnectionId}"
 @using Text2Sql.Net.Domain.Interface
 @using Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection
 @using Text2Sql.Net.Repositories.Text2Sql.ChatHistory
@@ -8,6 +9,7 @@
 @inject ISqlExecutionService SqlExecutionService
 @inject MessageService MessageService
 @inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
 
 <PageContainer Title="Text2Sql">
     <Content>
@@ -398,6 +400,9 @@
 </style>
 
 @code {
+    [Parameter]
+    public string? ConnectionId { get; set; }
+
     private List<DatabaseConnectionConfig> _connections = new List<DatabaseConnectionConfig>();
     private string? _selectedConnectionId;
     private List<ChatMessage> _chatHistory = new List<ChatMessage>();
@@ -423,6 +428,29 @@
         try
         {
             await LoadDatabaseConnections();
+            
+            // 检查URL参数中的connectionId
+            var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+            var queryParams = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+            string? connectionIdFromQuery = null;
+            
+            if (queryParams.TryGetValue("connectionId", out var connectionIdValues))
+            {
+                connectionIdFromQuery = connectionIdValues.FirstOrDefault();
+            }
+            
+            // 优先使用路由参数，其次使用查询参数
+            var targetConnectionId = !string.IsNullOrEmpty(ConnectionId) ? ConnectionId : connectionIdFromQuery;
+            
+            if (!string.IsNullOrEmpty(targetConnectionId))
+            {
+                _selectedConnectionId = targetConnectionId;
+                var selectedConnection = _connections.FirstOrDefault(c => c.Id == targetConnectionId);
+                if (selectedConnection != null)
+                {
+                    await OnDatabaseSelected(selectedConnection);
+                }
+            }
         }
         catch (Exception ex)
         {

@@ -49,8 +49,12 @@
             }
             
             <div style="margin-top: 16px;">
+                <Button Type="@ButtonType.Primary" Style="margin-right: 8px;" OnClick="@(() => NavigateToChat(Id))">
+                    <Icon Type="@IconType.Outline.Comment" />
+                    使用
+                </Button>
                 <Button Type="@ButtonType.Primary" Style="margin-right: 8px;" Loading="@_trainingLoading" OnClick="@TrainDatabaseSchema">
-                    训练全部Schema
+                    训练全部表
                 </Button>
                 <Button Type="@ButtonType.Default" Style="margin-right: 8px;" OnClick="@(() => NavigateToSelectTables(Id))">
                     选择表训练
@@ -72,7 +76,7 @@
 
 @code {
     [Parameter]
-    public string Id { get; set; }
+    public string Id { get; set; } = string.Empty;
 
     private DatabaseConnectionConfig _model = new DatabaseConnectionConfig();
     private bool _loading = false;
@@ -156,6 +160,11 @@
     private void NavigateToTrainedTables(string id)
     {
         NavigationManager.NavigateTo($"/database-connection/trained-tables/{id}");
+    }
+
+    private void NavigateToChat(string id)
+    {
+        NavigationManager.NavigateTo($"/database-chat?connectionId={id}");
     }
 
     private void NavigateToList()

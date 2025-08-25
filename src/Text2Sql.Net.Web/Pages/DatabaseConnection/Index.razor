@@ -30,6 +30,7 @@
                         <AntDesign.Col Xs="24" Sm="12" Md="12" Lg="6" Xl="6" XXl="6">
                             <Card Hoverable Bordered Class="connection-card"
                                   Actions="@(new[] {
+                                                use(() => NavigateToChat(item.Id)),
                                                 info(() => NavigateToDetails(item.Id)),
                                                 update(() => NavigateToEdit(item.Id)),
                                                 delete(() => DeleteConnection(item.Id))
@@ -115,9 +116,10 @@
 </style>
 
 @code {
+    RenderFragment use(Action clickAction) =>@<a key="use" @onclick="@clickAction" style="color: #1890ff; font-weight: 500;">使用</a>;
     RenderFragment info(Action clickAction) =>@<a key="info" @onclick="@clickAction">查看</a>;
-    RenderFragment update(Action clickAction) =>@<a key="use" @onclick="@clickAction">编辑</a>;
-    RenderFragment delete(Action clickAction) => @<a key="delete" @onclick="@clickAction">删除</a> ;
+    RenderFragment update(Action clickAction) =>@<a key="edit" @onclick="@clickAction">编辑</a>;
+    RenderFragment delete(Func<Task> clickAction) => @<a key="delete" @onclick="@clickAction">删除</a> ;
 
 
     private List<DatabaseConnectionConfig> _dataList = new List<DatabaseConnectionConfig>();
@@ -169,6 +171,11 @@
     private void NavigateToEdit(string id)
     {
         NavigationManager.NavigateTo($"/database-connection/create/{id}");
+    }
+
+    private void NavigateToChat(string id)
+    {
+        NavigationManager.NavigateTo($"/database-chat?connectionId={id}");
     }
 
     private async Task DeleteConnection(string id)
