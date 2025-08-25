@@ -28,22 +28,32 @@
                 <Divider />
                 
                 <div style="margin-bottom: 16px;">
-                    <Space>
-                        <SpaceItem>
-                            <Button Type="@ButtonType.Primary" Loading="@_loadingTables" OnClick="LoadTables">
-                                刷新表列表
-                            </Button>
-                        </SpaceItem>
-                        <SpaceItem>
-                            <Checkbox Checked="_selectAll" CheckedChanged="OnSelectAllChanged">全选</Checkbox>
-                        </SpaceItem>
-                    </Space>
+                    <div style="display: flex; gap: 16px; align-items: center;">
+                        <div style="flex: 1;">
+                            <Input Placeholder="搜索表名或描述..." 
+                                   @bind-Value="_searchKeyword" 
+                                   @oninput="OnSearchChanged"
+                                   AllowClear="true" />
+                        </div>
+                        <div>
+                            <Space>
+                                <SpaceItem>
+                                    <Button Type="@ButtonType.Primary" Loading="@_loadingTables" OnClick="LoadTables">
+                                        刷新表列表
+                                    </Button>
+                                </SpaceItem>
+                                <SpaceItem>
+                                    <Checkbox Checked="_selectAll" CheckedChanged="OnSelectAllChanged">全选</Checkbox>
+                                </SpaceItem>
+                            </Space>
+                        </div>
+                    </div>
                 </div>
                 
-                @if (_tables.Any())
+                @if (_filteredTables.Any())
                 {
                     <div style="border: 1px solid #d9d9d9; border-radius: 8px; padding: 16px;">
-                        @foreach (var table in _tables)
+                        @foreach (var table in _filteredTables)
                         {
                             <div style="margin-bottom: 8px; padding: 8px; border: 1px solid #f0f0f0; border-radius: 4px;">
                                 <Checkbox Checked="_selectedTables.Contains(table.TableName)" CheckedChanged="@((bool isChecked) => OnTableSelectionChanged(table.TableName, isChecked))">
@@ -59,6 +69,13 @@
                             </div>
                         }
                     </div>
+                    
+                    @if (!string.IsNullOrWhiteSpace(_searchKeyword) && _filteredTables.Count != _tables.Count)
+                    {
+                        <div style="margin-top: 8px; color: #666; font-size: 14px;">
+                            找到 @_filteredTables.Count 个表（共 @_tables.Count 个表）
+                        </div>
+                    }
                     
                     <div style="margin-top: 16px;">
                         <Space>
@@ -77,7 +94,17 @@
                 }
                 else if (!_loadingTables)
                 {
-                    <div style="text-align: center; padding: 40px; color: #999;">暂无数据表</div>
+                    <div style="text-align: center; padding: 40px; color: #999;">
+                        @if (!string.IsNullOrWhiteSpace(_searchKeyword))
+                        {
+                            <div>未找到匹配的表</div>
+                            <div style="font-size: 12px; margin-top: 8px;">请尝试修改搜索关键词</div>
+                        }
+                        else
+                        {
+                            <div>暂无数据表</div>
+                        }
+                    </div>
                 }
             }
         </Card>
@@ -90,7 +117,9 @@
 
     private DatabaseConnectionConfig? _model = null;
     private List<TableInfo> _tables = new();
+    private List<TableInfo> _filteredTables = new();
     private List<string> _selectedTables = new();
+    private string _searchKeyword = string.Empty;
     private bool _selectAll = false;
     private bool _loading = false;
     private bool _loadingTables = false;
@@ -136,6 +165,7 @@
         try
         {
             _tables = await SchemaTrainingService.GetDatabaseTablesAsync(Id);
+            ApplySearch();
             StateHasChanged();
         }
         catch (Exception ex)
@@ -154,7 +184,7 @@
         _selectAll = isChecked;
         if (_selectAll)
         {
-            _selectedTables = _tables.Select(t => t.TableName).ToList();
+            _selectedTables = _filteredTables.Select(t => t.TableName).ToList();
         }
         else
         {
@@ -177,7 +207,7 @@
             _selectedTables.Remove(tableName);
         }
         
-        _selectAll = _selectedTables.Count == _tables.Count;
+        _selectAll = _selectedTables.Count == _filteredTables.Count;
         StateHasChanged();
     }
 
@@ -219,5 +249,43 @@
     private void NavigateToDetails()
     {
         NavigationManager.NavigateTo($"/database-connection/details/{Id}");
+    }
+
+    private void OnSearchChanged(ChangeEventArgs e)
+    {
+        _searchKeyword = e.Value?.ToString() ?? string.Empty;
+        ApplySearch();
+        StateHasChanged();
+    }
+
+    private void ApplySearch()
+    {
+        if (string.IsNullOrWhiteSpace(_searchKeyword))
+        {
+            _filteredTables = _tables.ToList();
+        }
+        else
+        {
+            var keyword = _searchKeyword.ToLowerInvariant();
+            _filteredTables = _tables.Where(t => 
+                t.TableName.ToLowerInvariant().Contains(keyword) ||
+                (!string.IsNullOrEmpty(t.Description) && t.Description.ToLowerInvariant().Contains(keyword))
+            ).ToList();
+        }
+        
+        // 更新全选状态
+        UpdateSelectAllState();
+    }
+
+    private void UpdateSelectAllState()
+    {
+        if (_filteredTables.Any())
+        {
+            _selectAll = _filteredTables.All(t => _selectedTables.Contains(t.TableName));
+        }
+        else
+        {
+            _selectAll = false;
+        }
     }
 }
