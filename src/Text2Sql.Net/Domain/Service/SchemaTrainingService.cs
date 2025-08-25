@@ -119,7 +119,8 @@ namespace Text2Sql.Net.Domain.Service
                             ConnectionId = connectionId,
                             TableName = table.TableName,
                             Description = tableDescription.ToString(),
-                            EmbeddingType = EmbeddingType.Table
+                            EmbeddingType = EmbeddingType.Table,
+                            Vector = string.Empty // 临时占位，向量数据将在后续生成
                         };
 
                         // 生成表的向量
@@ -128,6 +129,9 @@ namespace Text2Sql.Net.Domain.Service
 
                         // 添加到向量存储
                         await textMemory.SaveInformationAsync(connectionId, id: tableId, text: JsonConvert.SerializeObject(tableEmbedding), cancellationToken: default);
+
+                        // 同时保存到数据库表中
+                        await _embeddingRepository.InsertAsync(tableEmbedding);
                     }
                     catch (Exception ex)
                     {
@@ -251,7 +255,8 @@ namespace Text2Sql.Net.Domain.Service
                             ConnectionId = connectionId,
                             TableName = table.TableName,
                             Description = tableDescription.ToString(),
-                            EmbeddingType = EmbeddingType.Table
+                            EmbeddingType = EmbeddingType.Table,
+                            Vector = string.Empty // 临时占位，向量数据将在后续生成
                         };
 
                         // 生成表的向量
@@ -260,6 +265,9 @@ namespace Text2Sql.Net.Domain.Service
 
                         // 添加到向量存储
                         await textMemory.SaveInformationAsync(connectionId, id: tableId, text: JsonConvert.SerializeObject(tableEmbedding), cancellationToken: default);
+
+                        // 同时保存到数据库表中
+                        await _embeddingRepository.InsertAsync(tableEmbedding);
                     }
                     catch (Exception ex)
                     {
@@ -988,6 +996,85 @@ namespace Text2Sql.Net.Domain.Service
             {
                 _logger.LogError(ex, "创建SQLite注释表时出错");
                 return false;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<List<TableInfo>> GetTrainedTablesAsync(string connectionId)
+        {
+            try
+            {
+                // 获取已训练的Schema信息
+                var existingSchema = await _schemaRepository.GetByConnectionIdAsync(connectionId);
+                if (existingSchema == null || string.IsNullOrEmpty(existingSchema.SchemaContent))
+                {
+                    return new List<TableInfo>();
+                }
+
+                // 反序列化Schema信息
+                var tables = JsonConvert.DeserializeObject<List<TableInfo>>(existingSchema.SchemaContent);
+                if (tables == null)
+                {
+                    return new List<TableInfo>();
+                }
+
+                // 获取已训练的嵌入数据
+                var embeddings = await _embeddingRepository.GetByConnectionIdAsync(connectionId);
+                var trainedTableNames = embeddings.Where(e => e.EmbeddingType == EmbeddingType.Table)
+                                                 .Select(e => e.TableName)
+                                                 .Distinct()
+                                                 .ToList();
+
+                // 只返回已训练的表信息
+                return tables.Where(t => trainedTableNames.Contains(t.TableName, StringComparer.OrdinalIgnoreCase))
+                           .ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"获取已训练表信息时出错：{ex.Message}");
+                return new List<TableInfo>();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<TableInfo> GetTableDetailAsync(string connectionId, string tableName)
+        {
+            try
+            {
+                // 获取完整的Schema信息
+                var existingSchema = await _schemaRepository.GetByConnectionIdAsync(connectionId);
+                if (existingSchema == null || string.IsNullOrEmpty(existingSchema.SchemaContent))
+                {
+                    return null;
+                }
+
+                // 反序列化Schema信息
+                var tables = JsonConvert.DeserializeObject<List<TableInfo>>(existingSchema.SchemaContent);
+                if (tables == null)
+                {
+                    return null;
+                }
+
+                // 查找指定的表
+                var table = tables.FirstOrDefault(t => string.Equals(t.TableName, tableName, StringComparison.OrdinalIgnoreCase));
+                if (table == null)
+                {
+                    return null;
+                }
+
+                // 检查是否已训练
+                var embedding = await _embeddingRepository.GetByTableAsync(connectionId, tableName);
+                if (embedding == null || !embedding.Any())
+                {
+                    return null;
+                }
+
+                return table;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"获取表详细信息时出错：{ex.Message}");
+                return null;
             }
         }
 

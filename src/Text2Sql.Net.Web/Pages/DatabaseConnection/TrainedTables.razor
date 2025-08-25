@@ -1,0 +1,150 @@
+@page "/database-connection/trained-tables/{ConnectionId}"
+@using Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema
+@using Text2Sql.Net.Domain.Interface
+@inject ISchemaTrainingService SchemaTrainingService
+@inject MessageService MessageService
+@inject NavigationManager NavigationManager
+
+<PageContainer Title="@($"已训练的表 - {_connectionName}")">
+    <Extra>
+        <Space>
+            <SpaceItem>
+                <Button Type="@ButtonType.Default" OnClick="@RefreshData">
+                    <Icon Type="@IconType.Outline.Reload" />
+                    刷新
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                <Button Type="@ButtonType.Default" OnClick="@NavigateBack">
+                    <Icon Type="@IconType.Outline.ArrowLeft" />
+                    返回
+                </Button>
+            </SpaceItem>
+        </Space>
+    </Extra>
+    <ChildContent>
+        <Card Loading="@_loading">
+            <ChildContent>
+                @if (_trainedTables?.Any() == true)
+                {
+                    <Alert Type="@AlertType.Info" 
+                           Message="@($"共找到 {_trainedTables.Count} 个已训练的表")" 
+                           Style="margin-bottom: 16px;" 
+                           ShowIcon="true" />
+                    
+                    <Table TItem="TableInfo" 
+                           DataSource="@_trainedTables" 
+                           Size="@TableSize.Default"
+                           Bordered="true"
+                           PageSize="10"
+                           Responsive="true">
+                        <AntDesign.Column TData="string" DataIndex="@nameof(TableInfo.TableName)" Title="表名" Width="200">
+                            <Text Strong>@context.TableName</Text>
+                        </AntDesign.Column>
+                        <AntDesign.Column TData="string" DataIndex="@nameof(TableInfo.Description)" Title="描述">
+                            @(context.Description ?? "无描述")
+                        </AntDesign.Column>
+                        <AntDesign.Column TData="int" Title="列数" Width="80" Align="@ColumnAlign.Center">
+                            <Tag Color="blue">@context.Columns.Count</Tag>
+                        </AntDesign.Column>
+                        <AntDesign.Column TData="int" Title="主键数" Width="80" Align="@ColumnAlign.Center">
+                            @{
+                                var primaryKeyCount = context.Columns.Count(c => c.IsPrimaryKey);
+                            }
+                            <Tag Color="@(primaryKeyCount > 0 ? "gold" : "default")">
+                                @primaryKeyCount
+                            </Tag>
+                        </AntDesign.Column>
+                        <AntDesign.Column TData="int" Title="外键数" Width="80" Align="@ColumnAlign.Center">
+                            @{
+                                var foreignKeyCount = context.ForeignKeys?.Count ?? 0;
+                            }
+                            <Tag Color="@(foreignKeyCount > 0 ? "green" : "default")">
+                                @foreignKeyCount
+                            </Tag>
+                        </AntDesign.Column>
+                        <ActionColumn Title="操作" Width="120">
+                            <Space>
+                                <SpaceItem>
+                                    <Button Type="@ButtonType.Primary" 
+                                            Size="@ButtonSize.Small" 
+                                            OnClick="@(() => ViewTableDetail(context.TableName))">
+                                        <Icon Type="@IconType.Outline.Eye" />
+                                        查看详情
+                                    </Button>
+                                </SpaceItem>
+                            </Space>
+                        </ActionColumn>
+                    </Table>
+                }
+                else if (!_loading)
+                {
+                    <Empty Description="@("暂无已训练的表")">
+                        <ChildContent>
+                            <div style="margin-top: 16px;">
+                                <Button Type="@ButtonType.Primary" OnClick="@NavigateBack">
+                                    返回连接详情页面进行训练
+                                </Button>
+                            </div>
+                        </ChildContent>
+                    </Empty>
+                }
+            </ChildContent>
+        </Card>
+    </ChildContent>
+</PageContainer>
+
+@code {
+    [Parameter] public string ConnectionId { get; set; } = string.Empty;
+
+    private List<TableInfo> _trainedTables = new List<TableInfo>();
+    private bool _loading = false;
+    private string _connectionName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        if (string.IsNullOrEmpty(ConnectionId))
+        {
+            await MessageService.Error("连接ID不能为空");
+            NavigateBack();
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            _trainedTables = await SchemaTrainingService.GetTrainedTablesAsync(ConnectionId);
+            _connectionName = ConnectionId.Substring(0, Math.Min(8, ConnectionId.Length)) + "...";
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"加载已训练表失败: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadData();
+        await MessageService.Success("数据已刷新");
+    }
+
+    private void ViewTableDetail(string tableName)
+    {
+        NavigationManager.NavigateTo($"/database-connection/table-detail/{ConnectionId}/{tableName}");
+    }
+
+    private void NavigateBack()
+    {
+        NavigationManager.NavigateTo($"/database-connection/details/{ConnectionId}");
+    }
+}

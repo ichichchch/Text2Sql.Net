@@ -1,0 +1,218 @@
+@page "/database-connection/table-detail/{ConnectionId}/{TableName}"
+@using Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema
+@using Text2Sql.Net.Domain.Interface
+@inject ISchemaTrainingService SchemaTrainingService
+@inject MessageService MessageService
+@inject NavigationManager NavigationManager
+
+<PageContainer Title="@($"表详情 - {TableName}")">
+    <Extra>
+        <Space>
+            <SpaceItem>
+                <Button Type="@ButtonType.Default" OnClick="@NavigateToTableList">
+                    <Icon Type="@IconType.Outline.ArrowLeft" />
+                    返回表列表
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                <Button Type="@ButtonType.Default" OnClick="@NavigateToConnection">
+                    <Icon Type="@IconType.Outline.Database" />
+                    连接详情
+                </Button>
+            </SpaceItem>
+        </Space>
+    </Extra>
+    <ChildContent>
+        <Card Loading="@_loading">
+            <ChildContent>
+                @if (_tableInfo != null)
+                {
+                    <!-- 基本信息卡片 -->
+                    <Card Title="基本信息" Size="@AntSizeLDSType.Small" Style="margin-bottom: 16px;">
+                        <ChildContent>
+                            <Descriptions Size="@AntSizeLDSType.Small" Bordered="true" Column="2">
+                                <DescriptionsItem Title="表名" Span="1">
+                                    <Text Strong>@_tableInfo.TableName</Text>
+                                </DescriptionsItem>
+                                <DescriptionsItem Title="列数" Span="1">
+                                    <Tag Color="blue">@_tableInfo.Columns.Count 列</Tag>
+                                </DescriptionsItem>
+                                <DescriptionsItem Title="主键数" Span="1">
+                                    @{
+                                        var primaryKeyCount = _tableInfo.Columns.Count(c => c.IsPrimaryKey);
+                                    }
+                                    <Tag Color="@(primaryKeyCount > 0 ? "gold" : "default")">@primaryKeyCount 个</Tag>
+                                </DescriptionsItem>
+                                <DescriptionsItem Title="外键数" Span="1">
+                                    @{
+                                        var foreignKeyCount = _tableInfo.ForeignKeys?.Count ?? 0;
+                                    }
+                                    <Tag Color="@(foreignKeyCount > 0 ? "green" : "default")">@foreignKeyCount 个</Tag>
+                                </DescriptionsItem>
+                                <DescriptionsItem Title="描述" Span="2">
+                                    @(_tableInfo.Description ?? "无描述")
+                                </DescriptionsItem>
+                            </Descriptions>
+                        </ChildContent>
+                    </Card>
+
+                    <!-- 外键关系卡片 -->
+                    @if (_tableInfo.ForeignKeys?.Any() == true)
+                    {
+                        <Card Title="外键关系" Size="@AntSizeLDSType.Small" Style="margin-bottom: 16px;">
+                            <ChildContent>
+                                @foreach (var fk in _tableInfo.ForeignKeys)
+                                {
+                                    <div style="padding: 8px; border: 1px solid #f0f0f0; border-radius: 6px; margin-bottom: 8px;">
+                                        <div style="display: flex; align-items: center; margin-bottom: 4px;">
+                                            <Icon Type="@IconType.Outline.Link" Style="margin-right: 8px; color: #1890ff;" />
+                                            <Text Strong>@fk.ForeignKeyName</Text>
+                                        </div>
+                                        <div style="color: #666; font-size: 14px;">
+                                            @fk.RelationshipDescription
+                                        </div>
+                                    </div>
+                                }
+                            </ChildContent>
+                        </Card>
+                    }
+
+                    <!-- 列信息卡片 -->
+                    <Card Title="@($"列信息 ({_tableInfo.Columns.Count} 列)")" Size="@AntSizeLDSType.Small">
+                        <ChildContent>
+                            <Table TItem="ColumnInfo" 
+                                   DataSource="@_tableInfo.Columns" 
+                                   Size="@TableSize.Small"
+                                   Bordered="true"
+                                   PageSize="15"
+                                   Responsive="true">
+                                <AntDesign.Column TData="string" DataIndex="@nameof(ColumnInfo.ColumnName)" Title="列名" Width="200">
+                                    <div style="display: flex; align-items: center;">
+                                        <Text Strong="@context.IsPrimaryKey" Type="@(context.IsPrimaryKey ? TextElementType.Warning : null)">
+                                            @context.ColumnName
+                                        </Text>
+                                        @if (context.IsPrimaryKey)
+                                        {
+                                            <Icon Type="@IconType.Outline.Key" Style="margin-left: 8px; color: #fa8c16;" />
+                                        }
+                                    </div>
+                                </AntDesign.Column>
+                                <AntDesign.Column TData="string" DataIndex="@nameof(ColumnInfo.DataType)" Title="数据类型" Width="150">
+                                    <Tag Color="@GetDataTypeColor(context.DataType)">@context.DataType</Tag>
+                                </AntDesign.Column>
+                                <AntDesign.Column TData="bool" DataIndex="@nameof(ColumnInfo.IsNullable)" Title="可空" Width="80" Align="@ColumnAlign.Center">
+                                    @if (context.IsNullable)
+                                    {
+                                        <Tag Color="success">是</Tag>
+                                    }
+                                    else
+                                    {
+                                        <Tag Color="error">否</Tag>
+                                    }
+                                </AntDesign.Column>
+                                <AntDesign.Column TData="bool" DataIndex="@nameof(ColumnInfo.IsPrimaryKey)" Title="主键" Width="80" Align="@ColumnAlign.Center">
+                                    @if (context.IsPrimaryKey)
+                                    {
+                                        <Tag Color="warning">是</Tag>
+                                    }
+                                    else
+                                    {
+                                        <Tag Color="default">否</Tag>
+                                    }
+                                </AntDesign.Column>
+                                <AntDesign.Column TData="string" DataIndex="@nameof(ColumnInfo.Description)" Title="描述">
+                                    @(context.Description ?? "无描述")
+                                </AntDesign.Column>
+                            </Table>
+                        </ChildContent>
+                    </Card>
+                }
+                else if (!_loading)
+                {
+                    <Result Status="404"
+                            Title="表不存在"
+                            SubTitle="@($"找不到表 '{TableName}' 的信息，可能该表未进行训练。")">
+                        <Extra>
+                            <Button Type="@ButtonType.Primary" OnClick="@NavigateToTableList">
+                                返回表列表
+                            </Button>
+                            <Button OnClick="@NavigateToConnection">
+                                连接详情
+                            </Button>
+                        </Extra>
+                    </Result>
+                }
+            </ChildContent>
+        </Card>
+    </ChildContent>
+</PageContainer>
+
+@code {
+    [Parameter] public string ConnectionId { get; set; } = string.Empty;
+    [Parameter] public string TableName { get; set; } = string.Empty;
+
+    private TableInfo? _tableInfo;
+    private bool _loading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTableData();
+    }
+
+    private async Task LoadTableData()
+    {
+        if (string.IsNullOrEmpty(ConnectionId) || string.IsNullOrEmpty(TableName))
+        {
+            await MessageService.Error("连接ID或表名不能为空");
+            NavigateToTableList();
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            _tableInfo = await SchemaTrainingService.GetTableDetailAsync(ConnectionId, TableName);
+            if (_tableInfo == null)
+            {
+                await MessageService.Warning($"未找到表 '{TableName}' 的训练信息");
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"加载表详细信息失败: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void NavigateToTableList()
+    {
+        NavigationManager.NavigateTo($"/database-connection/trained-tables/{ConnectionId}");
+    }
+
+    private void NavigateToConnection()
+    {
+        NavigationManager.NavigateTo($"/database-connection/details/{ConnectionId}");
+    }
+
+    private string GetDataTypeColor(string dataType)
+    {
+        if (string.IsNullOrEmpty(dataType))
+            return "";
+
+        var type = dataType.ToLower();
+        return type switch
+        {
+            var t when t.Contains("int") || t.Contains("number") || t.Contains("decimal") || t.Contains("numeric") => "blue",
+            var t when t.Contains("varchar") || t.Contains("text") || t.Contains("char") || t.Contains("string") => "green",
+            var t when t.Contains("datetime") || t.Contains("timestamp") || t.Contains("date") || t.Contains("time") => "orange",
+            var t when t.Contains("bool") || t.Contains("bit") => "purple",
+            var t when t.Contains("float") || t.Contains("real") || t.Contains("double") => "cyan",
+            var t when t.Contains("binary") || t.Contains("blob") || t.Contains("image") => "red",
+            _ => "default"
+        };
+    }
+}

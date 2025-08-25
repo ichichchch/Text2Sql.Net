@@ -303,6 +303,21 @@
             <param name="connectionId">数据库连接ID</param>
             <returns>Schema信息</returns>
         </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.ISchemaTrainingService.GetTrainedTablesAsync(System.String)">
+            <summary>
+            获取已训练的表信息（详细）
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <returns>已训练的表信息列表</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.ISchemaTrainingService.GetTableDetailAsync(System.String,System.String)">
+            <summary>
+            获取表的详细信息
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="tableName">表名</param>
+            <returns>表的详细信息</returns>
+        </member>
         <member name="T:Text2Sql.Net.Domain.Interface.ISqlExecutionService">
             <summary>
             SQL执行服务接口
@@ -1313,6 +1328,12 @@
             </summary>
             <param name="db">数据库连接</param>
             <returns>成功与否</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.GetTrainedTablesAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.GetTableDetailAsync(System.String,System.String)">
+            <inheritdoc/>
         </member>
         <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.GetDbType(System.String)">
             <summary>

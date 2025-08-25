@@ -2,7 +2,9 @@
 @using Text2Sql.Net.Domain.Model
 @using Text2Sql.Net.Repositories.Text2Sql
 @using Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection
+@using Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema
 @using Text2Sql.Net.Domain.Interface
+
 @inject IDatabaseConnectionConfigRepository DatabaseConnectionConfigRepository
 @inject ISchemaTrainingService SchemaTrainingService
 @inject MessageService MessageService
@@ -40,6 +42,10 @@
                 </Button>
                 <Button Type="@ButtonType.Default" Style="margin-right: 8px;" OnClick="@(() => NavigateToSelectTables(Id))">
                     选择表训练
+                </Button>
+                <Button Type="@ButtonType.Default" Style="margin-right: 8px;" OnClick="@(() => NavigateToTrainedTables(Id))">
+                    <Icon Type="@IconType.Outline.Table" />
+                    查看已训练表
                 </Button>
                 <Button Type="@ButtonType.Primary" OnClick="@(() => NavigateToEdit(Id))">
                     编辑
@@ -101,7 +107,7 @@
             var result = await SchemaTrainingService.TrainDatabaseSchemaAsync(Id);
             if (result)
             {
-                await MessageService.Success("数据库Schema训练成功");
+                await MessageService.Success("数据库Schema训练成功，可点击查看已训练表按钮查看结果");
             }
             else
             {
@@ -127,6 +133,11 @@
     private void NavigateToSelectTables(string id)
     {
         NavigationManager.NavigateTo($"/database-connection/select-tables/{id}");
+    }
+
+    private void NavigateToTrainedTables(string id)
+    {
+        NavigationManager.NavigateTo($"/database-connection/trained-tables/{id}");
     }
 
     private void NavigateToList()
