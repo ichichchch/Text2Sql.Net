@@ -172,12 +172,86 @@
        Visible="@_isChartModalVisible"
        OnOk="@OnChartOk"
        OnCancel="@OnChartCancel"
-       Style="width:80%"
+       Style="width:95%;max-width:1400px;"
        Centered>
-    <div style="margin-bottom:8px;color:#888;">根据最新一次查询结果自动生成图表</div>
-    <div id="chatChartContainer" style="width:100%;height:520px;"></div>
-    <div style="text-align:right;margin-top:12px;">
-        <Button OnClick="@ExportChartPng">导出 PNG</Button>
+    
+    <!-- 图表控制面板 -->
+    <div class="chart-control-panel">
+        <Row Gutter="16">
+            <Col Span="8">
+                <div class="control-group">
+                    <label class="control-label">图表类型</label>
+                    <Select TItem="ChartTypeOption"
+                            TItemValue="string"
+                            DataSource="@_chartTypes"
+                            @bind-Value="@_selectedChartType"
+                            ValueName="@nameof(ChartTypeOption.Key)"
+                            LabelName="@nameof(ChartTypeOption.Label)"
+                            Style="width: 100%;"
+                            OnSelectedItemChanged="@((chartType) => OnChartTypeChanged(chartType))">
+                        <ItemTemplate Context="chartType">
+                            <Icon Type="@chartType.Icon" Style="margin-right: 8px;" />
+                            @chartType.Label
+                        </ItemTemplate>
+                    </Select>
+                </div>
+            </Col>
+            <Col Span="8">
+                <div class="control-group">
+                    <label class="control-label">分类字段</label>
+                    <Select TItem="ColumnOption"
+                            TItemValue="string"
+                            DataSource="@_availableColumns"
+                            @bind-Value="@_selectedCategoryColumn"
+                            ValueName="@nameof(ColumnOption.Key)"
+                            LabelName="@nameof(ColumnOption.Label)"
+                            Style="width: 100%;"
+                            OnSelectedItemChanged="@((column) => OnColumnSelectionChanged(column))">
+                    </Select>
+                </div>
+            </Col>
+            <Col Span="8">
+                <div class="control-group">
+                    <label class="control-label">数值字段</label>
+                    <Select TItem="ColumnOption"
+                            TItemValue="string"
+                            DataSource="@_availableColumns"
+                            @bind-Values="@_selectedValueColumns"
+                            ValueName="@nameof(ColumnOption.Key)"
+                            LabelName="@nameof(ColumnOption.Label)"
+                            Mode="multiple"
+                            Style="width: 100%;"
+                            OnSelectedItemsChanged="@((columns) => OnValueColumnsChanged(columns))">
+                    </Select>
+                </div>
+            </Col>
+        </Row>
+        
+        <div class="chart-tips">
+            <Icon Type="info-circle" Style="color: #1890ff; margin-right: 4px;" />
+            <span>提示：饼图仅支持单个数值字段，散点图需要至少两个数值字段</span>
+        </div>
+    </div>
+    
+    <!-- 图表显示区域 -->
+    <div class="chart-display-area">
+        <div id="chatChartContainer" style="width:100%;height:600px;min-height:600px;"></div>
+    </div>
+    
+    <!-- 操作按钮 -->
+    <div class="chart-actions">
+        <Space>
+            <SpaceItem>
+                <Button Type="@ButtonType.Default" OnClick="@ResetChartToAuto">
+                    <Icon Type="reload" /> 重置为自动
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                <Button Type="@ButtonType.Primary" OnClick="@ExportChartPng">
+                    <Icon Type="download" /> 导出 PNG
+                </Button>
+            </SpaceItem>
+        </Space>
     </div>
     
 </Modal>
@@ -514,6 +588,61 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #a8a8a8;
         }
+
+    /* 图表控制面板样式 */
+    .chart-control-panel {
+        background: #fafafa;
+        border: 1px solid #f0f0f0;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+
+    .control-group {
+        margin-bottom: 12px;
+    }
+
+    .control-label {
+        display: block;
+        font-weight: 500;
+        color: #262626;
+        margin-bottom: 4px;
+        font-size: 14px;
+    }
+
+    .chart-tips {
+        margin-top: 12px;
+        padding: 8px 12px;
+        background: #e6f7ff;
+        border: 1px solid #91d5ff;
+        border-radius: 4px;
+        font-size: 12px;
+        color: #0050b3;
+        display: flex;
+        align-items: center;
+    }
+
+    .chart-display-area {
+        background: white;
+        border: 1px solid #f0f0f0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 16px;
+        min-height: 640px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    #chatChartContainer {
+        width: 100% !important;
+        height: 600px !important;
+        min-height: 600px !important;
+    }
+
+    .chart-actions {
+        text-align: right;
+        padding-top: 12px;
+        border-top: 1px solid #f0f0f0;
+    }
 </style>
 
 @code {
@@ -532,11 +661,36 @@
     private bool _isClearConfirmVisible = false;
     private bool _clearingHistory = false;
 
+    // 图表控制相关变量
+    private List<ChartTypeOption> _chartTypes = new List<ChartTypeOption>();
+    private List<ColumnOption> _availableColumns = new List<ColumnOption>();
+    private string _selectedChartType = "bar";
+    private string? _selectedCategoryColumn;
+    private IEnumerable<string> _selectedValueColumns = new List<string>();
+
+    // 数据模型
+    public class ChartTypeOption
+    {
+        public string Key { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public string Icon { get; set; } = string.Empty;
+    }
+
+    public class ColumnOption
+    {
+        public string Key { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
+    }
+
     protected override async Task OnInitializedAsync()
     {
         // 确保初始化时状态正确
         _loading = false;
         _loadingHistory = false;
+
+        // 初始化图表类型选项
+        InitializeChartTypes();
 
         try
         {
@@ -885,6 +1039,170 @@
     }
 
     /// <summary>
+    /// 初始化图表类型选项
+    /// </summary>
+    private void InitializeChartTypes()
+    {
+        _chartTypes = new List<ChartTypeOption>
+        {
+            new ChartTypeOption { Key = "bar", Label = "柱状图", Icon = "bar-chart" },
+            new ChartTypeOption { Key = "line", Label = "折线图", Icon = "line-chart" },
+            new ChartTypeOption { Key = "pie", Label = "饼图", Icon = "pie-chart" },
+            new ChartTypeOption { Key = "scatter", Label = "散点图", Icon = "dot-chart" },
+            new ChartTypeOption { Key = "area", Label = "面积图", Icon = "area-chart" }
+        };
+    }
+
+    /// <summary>
+    /// 初始化可用列选项
+    /// </summary>
+    private void InitializeAvailableColumns()
+    {
+        if (_currentChartMessage?.QueryResult == null || _currentChartMessage.QueryResult.Count == 0)
+        {
+            _availableColumns = new List<ColumnOption>();
+            return;
+        }
+
+        try
+        {
+            _availableColumns = new List<ColumnOption>();
+            
+            // 获取所有列作为可选项
+            var firstRow = _currentChartMessage.QueryResult.FirstOrDefault();
+            if (firstRow != null)
+            {
+                foreach (var key in firstRow.Keys)
+                {
+                    var value = firstRow[key];
+                    var isNumeric = IsNumericValue(value);
+                    
+                    _availableColumns.Add(new ColumnOption
+                    {
+                        Key = key,
+                        Label = key,
+                        Type = isNumeric ? "value" : "category"
+                    });
+                }
+            }
+
+            // 设置默认选择
+            if (!_availableColumns.Any()) return;
+            
+            var categoryCol = _availableColumns.FirstOrDefault(c => c.Type == "category");
+            var valueCol = _availableColumns.FirstOrDefault(c => c.Type == "value");
+            
+            _selectedCategoryColumn = categoryCol?.Key ?? _availableColumns.First().Key;
+            _selectedValueColumns = valueCol != null ? new[] { valueCol.Key } : new[] { _availableColumns.Last().Key };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"初始化列选项失败: {ex.Message}");
+            _availableColumns = new List<ColumnOption>();
+        }
+    }
+
+    /// <summary>
+    /// 判断值是否为数值类型
+    /// </summary>
+    private bool IsNumericValue(object? value)
+    {
+        if (value == null) return false;
+        
+        return value is int or long or decimal or double or float or byte or short or uint or ulong or ushort or sbyte ||
+               (value is string str && !string.IsNullOrWhiteSpace(str) && 
+                (decimal.TryParse(str, out _) || double.TryParse(str, out _)));
+    }
+
+    /// <summary>
+    /// 图表类型变更处理
+    /// </summary>
+    private async Task OnChartTypeChanged(ChartTypeOption chartType)
+    {
+        if (chartType == null) return;
+
+        _selectedChartType = chartType.Key;
+        await UpdateChart();
+    }
+
+    /// <summary>
+    /// 列选择变更处理
+    /// </summary>
+    private async Task OnColumnSelectionChanged(ColumnOption column)
+    {
+        if (column == null) return;
+        await UpdateChart();
+    }
+
+    /// <summary>
+    /// 数值列选择变更处理
+    /// </summary>
+    private async Task OnValueColumnsChanged(IEnumerable<ColumnOption> columns)
+    {
+        _selectedValueColumns = columns?.Select(c => c.Key) ?? new List<string>();
+        await UpdateChart();
+    }
+
+    /// <summary>
+    /// 更新图表显示
+    /// </summary>
+    private async Task UpdateChart()
+    {
+        if (_currentChartMessage?.QueryResult == null || _currentChartMessage.QueryResult.Count == 0)
+            return;
+
+        try
+        {
+            var valueColumns = _selectedValueColumns.ToArray();
+            if (valueColumns.Length == 0)
+            {
+                // 如果没有选择数值列，使用默认的第一个数值列
+                var defaultValueCol = _availableColumns.FirstOrDefault(c => c.Type == "value");
+                if (defaultValueCol != null)
+                {
+                    valueColumns = new[] { defaultValueCol.Key };
+                    _selectedValueColumns = valueColumns;
+                }
+            }
+
+            await JSRuntime.InvokeVoidAsync("echartsInterop.renderCustomChart", 
+                "chatChartContainer", 
+                _currentChartMessage.QueryResult,
+                _selectedChartType,
+                _selectedCategoryColumn,
+                valueColumns);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"更新图表失败: {ex.Message}");
+            _ = MessageService.Error("更新图表失败");
+        }
+    }
+
+    /// <summary>
+    /// 重置为自动图表
+    /// </summary>
+    private async Task ResetChartToAuto()
+    {
+        if (_currentChartMessage?.QueryResult == null || _currentChartMessage.QueryResult.Count == 0)
+            return;
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("echartsInterop.renderAutoChart", "chatChartContainer", _currentChartMessage.QueryResult);
+            
+            // 重置选择状态
+            InitializeAvailableColumns();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"重置图表失败: {ex.Message}");
+            _ = MessageService.Error("重置图表失败");
+        }
+    }
+
+    /// <summary>
     /// 为特定消息显示图表
     /// </summary>
     /// <param name="message">包含查询结果的消息</param>
@@ -898,11 +1216,15 @@
 
         _currentChartMessage = message;
         _isChartModalVisible = true;
+        
+        // 初始化列选项
+        InitializeAvailableColumns();
+        
         await InvokeAsync(StateHasChanged);
 
         try
         {
-            await Task.Delay(50); // 等待DOM渲染
+            await Task.Delay(300); // 等待DOM渲染和模态框动画完成
             await JSRuntime.InvokeVoidAsync("echartsInterop.renderAutoChart", "chatChartContainer", message.QueryResult);
         }
         catch (Exception ex)
@@ -921,6 +1243,13 @@
     {
         _isChartModalVisible = false;
         _currentChartMessage = null;
+        
+        // 重置图表控制状态
+        _availableColumns.Clear();
+        _selectedCategoryColumn = null;
+        _selectedValueColumns = new List<string>();
+        _selectedChartType = "bar";
+        
         try
         {
             await JSRuntime.InvokeVoidAsync("echartsInterop.dispose", "chatChartContainer");
