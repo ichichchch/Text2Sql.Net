@@ -57,7 +57,7 @@
                                     {
                                         <div class="sql-content">
                                             <Divider Orientation="left">生成的SQL</Divider>
-                                            <pre>@context.SqlQuery</pre>
+                                            <pre class="language-sql">@context.SqlQuery</pre>
                                             <div class="sql-actions">
                                                 <Button Type="@ButtonType.Link" OnClick="async () => await CopySqlToClipboard(context.SqlQuery)">
                                                     <Icon Type="copy" /> 复制
@@ -68,11 +68,17 @@
                                                 @if (_sqlResult != null && context.SqlQuery == _lastExecutedSql)
                                                 {
                                                     <Button Type="@ButtonType.Link" OnClick="@(() => _isResultModalVisible = true)">
-                                                        <Icon Type="table" /> 查看结果
+                                                        <Icon Type="table" /> 查看结果 (@(_sqlResult.Count) 条)
                                                     </Button>
                                                      <Button Type="@ButtonType.Link" OnClick="@ShowChartAsync">
-                                                         查看图表
+                                                         <Icon Type="bar-chart" /> 查看图表
                                                      </Button>
+                                                }
+                                                @if (context.QueryResult != null && context.QueryResult.Count > 0)
+                                                {
+                                                    <Tag Color="green" Style="margin-left: 8px;">
+                                                        <Icon Type="check-circle" /> 已自动执行
+                                                    </Tag>
                                                 }
                                             </div>
                                             @if (!string.IsNullOrEmpty(context.ExecutionError))
@@ -301,26 +307,147 @@
         margin-top: 12px;
         background-color: #f9f9f9;
         padding: 12px;
-        border-radius: 4px;
+        border-radius: 6px;
         border-left: 3px solid #1890ff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
         .sql-content pre {
             margin: 0;
             white-space: pre-wrap;
-            max-height: 200px;
+            max-height: 300px;
             overflow: auto;
-            background-color: #f0f0f0;
-            padding: 8px;
+            background-color: #282c34 !important;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            border: 1px solid #e1e1e1;
+            position: relative;
+        }
+
+        .sql-content pre.language-sql {
+            background-color: #282c34 !important;
+            color: #abb2bf !important;
+        }
+
+        /* 强制覆盖Prism.js默认样式 - SQL关键词高亮 */
+        .sql-content .token.keyword,
+        .sql-content pre.language-sql .token.keyword,
+        pre.language-sql .token.keyword {
+            color: #ff6b6b !important;
+            font-weight: 900 !important;
+            text-transform: uppercase !important;
+            background-color: rgba(255, 107, 107, 0.15) !important;
+            padding: 2px 4px !important;
+            border-radius: 3px !important;
+            text-shadow: 0 0 2px rgba(255, 107, 107, 0.3) !important;
+            letter-spacing: 0.5px !important;
+            display: inline-block !important;
+        }
+
+        /* 特别突出显示主要SQL关键词 */
+        .sql-content .token.keyword.sql-primary,
+        .sql-content pre.language-sql .token.keyword.sql-primary,
+        pre.language-sql .token.keyword.sql-primary {
+            color: #fff !important;
+            background-color: #ff6b6b !important;
+            font-weight: 900 !important;
+            padding: 3px 6px !important;
+            border-radius: 4px !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+            box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3) !important;
+            display: inline-block !important;
+        }
+
+        /* 确保SQL代码块内所有关键词都被正确识别 */
+        .sql-content pre code .token.keyword,
+        pre.language-sql code .token.keyword {
+            color: #ff6b6b !important;
+            font-weight: 900 !important;
+            text-transform: uppercase !important;
+        }
+
+        /* 后备高亮方案的样式 */
+        .sql-content .sql-keyword-fallback,
+        pre .sql-keyword-fallback {
+            color: #fff !important;
+            background-color: #ff6b6b !important;
+            font-weight: 900 !important;
+            padding: 2px 4px !important;
+            border-radius: 3px !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+            box-shadow: 0 1px 2px rgba(255, 107, 107, 0.3) !important;
+            display: inline-block !important;
+            margin: 1px !important;
+        }
+
+        .sql-content .token.string {
+            color: #98c379 !important;
+        }
+
+        .sql-content .token.number {
+            color: #d19a66 !important;
+        }
+
+        .sql-content .token.operator {
+            color: #56b6c2 !important;
+        }
+
+        .sql-content .token.function {
+            color: #61afef !important;
+        }
+
+        .sql-content .token.comment {
+            color: #5c6370 !important;
+            font-style: italic;
+        }
+
+        /* 滚动条样式优化 */
+        .sql-content pre::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .sql-content pre::-webkit-scrollbar-track {
+            background: #3a3f4b;
             border-radius: 4px;
-            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .sql-content pre::-webkit-scrollbar-thumb {
+            background: #5c6370;
+            border-radius: 4px;
+        }
+
+        .sql-content pre::-webkit-scrollbar-thumb:hover {
+            background: #6c7b7f;
         }
 
     .sql-actions {
         display: flex;
         justify-content: flex-end;
         margin-top: 8px;
+        gap: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #e8e8e8;
     }
+
+        .sql-actions .ant-btn-link {
+            padding: 4px 8px;
+            height: auto;
+            color: #1890ff;
+            transition: all 0.3s ease;
+        }
+
+        .sql-actions .ant-btn-link:hover {
+            background-color: rgba(24, 144, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        .sql-actions .ant-btn-link .anticon {
+            margin-right: 4px;
+        }
 
     .sql-result-container {
         width: 100%;
@@ -460,6 +587,56 @@
         await base.OnInitializedAsync();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (firstRender)
+            {
+                // 首次渲染后，等待更长时间确保Prism.js加载完成
+                await Task.Delay(500);
+                Console.WriteLine("开始初始化SQL高亮...");
+                
+                // 检查Prism.js是否加载
+                var prismLoaded = await JSRuntime.InvokeAsync<bool>("eval", "typeof Prism !== 'undefined'");
+                Console.WriteLine($"Prism.js加载状态: {prismLoaded}");
+                
+                if (prismLoaded)
+                {
+                    await JSRuntime.InvokeVoidAsync("databaseChatFunctions.highlightAllSql");
+                    Console.WriteLine("SQL高亮已应用");
+                }
+                else
+                {
+                    Console.WriteLine("Prism.js未加载，尝试手动高亮");
+                    // 尝试直接调用Prism
+                    await JSRuntime.InvokeVoidAsync("eval", "if(typeof Prism !== 'undefined') { Prism.highlightAll(); }");
+                }
+            }
+            else
+            {
+                // 每次重新渲染后重新应用SQL语法高亮
+                await Task.Delay(200); // 等待DOM更新
+                
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("databaseChatFunctions.highlightAllSql");
+                }
+                catch
+                {
+                    // 如果自定义函数失败，尝试直接调用Prism
+                    await JSRuntime.InvokeVoidAsync("eval", "if(typeof Prism !== 'undefined') { Prism.highlightAll(); }");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SQL高亮处理失败: {ex.Message}");
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
     /// <summary>
     /// 加载数据库连接列表
     /// </summary>
@@ -582,14 +759,56 @@
 
             // 添加AI响应到聊天历史
             _chatHistory.Add(response);
+            
+            // 强制重新渲染以触发高亮
+            StateHasChanged();
 
+            // 如果生成了SQL，自动执行查询
+            if (!string.IsNullOrEmpty(response.SqlQuery) && string.IsNullOrEmpty(response.ExecutionError))
+            {
+                try
+                {
+                    var (autoResult, autoError) = await SqlExecutionService.ExecuteQueryAsync(_selectedConnectionId, response.SqlQuery);
+                    
+                    if (!string.IsNullOrEmpty(autoError))
+                    {
+                        // 更新响应中的执行错误信息
+                        response.ExecutionError = autoError;
+                        // 更新数据库中的聊天记录
+                        await ChatService.SaveChatMessageAsync(response);
+                    }
+                    else if (autoResult != null && autoResult.Count > 0)
+                    {
+                        // 更新响应中的查询结果
+                        response.QueryResult = autoResult;
+                        // 更新数据库中的聊天记录
+                        await ChatService.SaveChatMessageAsync(response);
+                        
+                        // 显示查询结果
+                        _sqlResult = autoResult;
+                        _sqlColumns = autoResult.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
+                        _lastExecutedSql = response.SqlQuery; // 记录SQL
+                        
+                        _= MessageService.Success($"SQL自动执行成功，返回 {autoResult.Count} 条记录");
+                    }
+                    else
+                    {
+                        _= MessageService.Info("SQL自动执行成功，但未返回数据");
+                    }
+                }
+                catch (Exception autoEx)
+                {
+                    Console.WriteLine($"自动执行SQL失败: {autoEx.Message}");
+                    // 不显示错误消息给用户，因为用户仍然可以手动执行
+                }
+            }
+            
             // 显示查询结果（如果有）
             if (response.QueryResult != null && response.QueryResult.Count > 0)
             {
                 _sqlResult = response.QueryResult;
                 _sqlColumns = response.QueryResult.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
                 _lastExecutedSql = response.SqlQuery; // 记录SQL
-                // 不自动弹出结果框，等用户点击查看结果按钮
             }
         }
         catch (Exception ex)
