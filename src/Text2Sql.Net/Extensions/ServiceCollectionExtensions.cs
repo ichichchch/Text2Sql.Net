@@ -104,8 +104,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         static void CodeFirst()
         {
-            // 获取仓储服务
-            var _repository = new DatabaseConnectionConfigRepository();
+            // 获取仓储服务 - 使用基类，避免依赖注入问题
+            var _repository = new Text2Sql.Net.Base.Repository<DatabaseConnectionConfig>();
 
             // 创建数据库（如果不存在）
             _repository.GetDB().DbMaintenance.CreateDatabase();

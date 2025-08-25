@@ -278,26 +278,36 @@
         try
         {
             GenerateConnectionString();
-            bool success=false;
             if (string.IsNullOrEmpty(_model.Id))
             {
                 _model.Id = Guid.NewGuid().ToString();
             }
-            success = await DatabaseConnectionConfigRepository.InsertOrUpdateAsync(_model);
+
+            // 使用新的更新方法，支持Schema数据清理
+            var (success, shouldRetrainSchema, message) = await DatabaseConnectionConfigRepository.UpdateWithSchemaCleanupAsync(_model);
               
             if (success)
             {
-                await MessageService.Success("保存成功");
+                if (shouldRetrainSchema)
+                {
+                    // 如果需要重新训练Schema，显示特殊提示
+                    await MessageService.Success(message);
+                    await MessageService.Warning("由于数据库连接信息发生变更，建议重新训练Schema以确保数据一致性");
+                }
+                else
+                {
+                    await MessageService.Success(message);
+                }
                 NavigateToDetail(_model.Id);
             }
             else
             {
-                await MessageService.Error("保存失败");
+                await MessageService.Error(message);
             }
         }
         catch (Exception ex)
         {
-            await MessageService.Error($"添加失败: {ex.Message}");
+            await MessageService.Error($"保存失败: {ex.Message}");
         }
         finally
         {

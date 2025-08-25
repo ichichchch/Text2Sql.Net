@@ -1805,10 +1805,39 @@
             数据库连接配置仓储实现类
             </summary>
         </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfigRepository.UpdateWithSchemaCleanupAsync(Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig)">
+            <summary>
+            更新连接配置并处理Schema数据一致性
+            </summary>
+            <param name="newConfig">新的连接配置</param>
+            <returns>更新结果和是否需要重新训练Schema</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfigRepository.HasCriticalFieldsChanged(Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig,Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig)">
+            <summary>
+            检查关键字段是否发生变化
+            </summary>
+            <param name="existing">现有配置</param>
+            <param name="newConfig">新配置</param>
+            <returns>是否有关键字段变化</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfigRepository.CleanupSchemaDataAsync(System.String)">
+            <summary>
+            清理指定连接ID的Schema相关数据
+            </summary>
+            <param name="connectionId">连接ID</param>
+            <returns></returns>
+        </member>
         <member name="T:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.IDatabaseConnectionConfigRepository">
             <summary>
             数据库连接配置仓储接口
             </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.IDatabaseConnectionConfigRepository.UpdateWithSchemaCleanupAsync(Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig)">
+            <summary>
+            更新连接配置并处理Schema数据一致性
+            </summary>
+            <param name="newConfig">新的连接配置</param>
+            <returns>更新结果和是否需要重新训练Schema</returns>
         </member>
         <member name="T:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.DatabaseSchema">
             <summary>
