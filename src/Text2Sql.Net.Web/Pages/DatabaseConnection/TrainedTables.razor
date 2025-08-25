@@ -110,7 +110,7 @@
     {
         if (string.IsNullOrEmpty(ConnectionId))
         {
-            await MessageService.Error("连接ID不能为空");
+            _= MessageService.Error("连接ID不能为空");
             NavigateBack();
             return;
         }
@@ -123,7 +123,7 @@
         }
         catch (Exception ex)
         {
-            await MessageService.Error($"加载已训练表失败: {ex.Message}");
+            _= MessageService.Error($"加载已训练表失败: {ex.Message}");
         }
         finally
         {
@@ -135,7 +135,7 @@
     private async Task RefreshData()
     {
         await LoadData();
-        await MessageService.Success("数据已刷新");
+        _= MessageService.Success("数据已刷新");
     }
 
     private void ViewTableDetail(string tableName)

@@ -100,13 +100,13 @@
             }
             else
             {
-                await MessageService.Error("找不到指定的数据库连接配置");
+                _= MessageService.Error("找不到指定的数据库连接配置");
                 NavigateToList();
             }
         }
         catch (Exception ex)
         {
-            await MessageService.Error($"加载数据失败: {ex.Message}");
+            _= MessageService.Error($"加载数据失败: {ex.Message}");
             NavigateToList();
         }
         finally
@@ -124,17 +124,17 @@
             var result = await SchemaTrainingService.TrainDatabaseSchemaAsync(Id);
             if (result)
             {
-                await MessageService.Success("数据库Schema训练成功，可点击查看已训练表按钮查看结果");
+                _= MessageService.Success("数据库Schema训练成功，可点击查看已训练表按钮查看结果");
                 _hasTrainedSchema = true; // 更新状态
             }
             else
             {
-                await MessageService.Error("数据库Schema训练失败");
+                _= MessageService.Error("数据库Schema训练失败");
             }
         }
         catch (Exception ex)
         {
-            await MessageService.Error($"训练失败: {ex.Message}");
+            _= MessageService.Error($"训练失败: {ex.Message}");
         }
         finally
         {

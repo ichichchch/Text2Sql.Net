@@ -142,7 +142,7 @@
         }
         catch (Exception ex)
         {
-            await MessageService.Error($"加载数据失败: {ex.Message}", 2);
+            _= MessageService.Error($"加载数据失败: {ex.Message}", 2);
         }
         finally
         {
@@ -178,17 +178,17 @@
             var success = await DatabaseConnectionConfigRepository.DeleteAsync(id);
             if (success)
             {
-                await MessageService.Success("删除成功");
+                _= MessageService.Success("删除成功");
                 await InitData("");
             }
             else
             {
-                await MessageService.Error("删除失败");
+                _= MessageService.Error("删除失败");
             }
         }
         catch (Exception ex)
         {
-            await MessageService.Error($"删除失败: {ex.Message}");
+            _= MessageService.Error($"删除失败: {ex.Message}");
         }
     }
     

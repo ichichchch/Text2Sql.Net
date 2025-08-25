@@ -170,7 +170,7 @@
     {
         if (_excelFile == null)
         {
-            await MessageService.Warning("请先选择Excel文件");
+            _= MessageService.Warning("请先选择Excel文件");
             return;
         }
         _importing = true;
@@ -195,11 +195,11 @@
 
             _model.Database = sqlitePath;
             _model.ConnectionString = $"Data Source={sqlitePath};";
-            await MessageService.Success("Excel 导入 SQLite 成功，已生成连接字符串");
+            _= MessageService.Success("Excel 导入 SQLite 成功，已生成连接字符串");
         }
         catch (Exception ex)
         {
-            await MessageService.Error($"导入失败: {ex.Message}");
+            _= MessageService.Error($"导入失败: {ex.Message}");
         }
         finally
         {
@@ -291,23 +291,23 @@
                 if (shouldRetrainSchema)
                 {
                     // 如果需要重新训练Schema，显示特殊提示
-                    await MessageService.Success(message);
-                    await MessageService.Warning("由于数据库连接信息发生变更，建议重新训练Schema以确保数据一致性");
+                    _= MessageService.Success(message);
+                    _= MessageService.Warning("由于数据库连接信息发生变更，建议重新训练Schema以确保数据一致性");
                 }
                 else
                 {
-                    await MessageService.Success(message);
+                    _= MessageService.Success(message);
                 }
                 NavigateToDetail(_model.Id);
             }
             else
             {
-                await MessageService.Error(message);
+                _= MessageService.Error(message);
             }
         }
         catch (Exception ex)
         {
-            await MessageService.Error($"保存失败: {ex.Message}");
+            _= MessageService.Error($"保存失败: {ex.Message}");
         }
         finally
         {

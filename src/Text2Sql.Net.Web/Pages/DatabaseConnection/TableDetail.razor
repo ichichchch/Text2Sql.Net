@@ -163,7 +163,7 @@
     {
         if (string.IsNullOrEmpty(ConnectionId) || string.IsNullOrEmpty(TableName))
         {
-            await MessageService.Error("连接ID或表名不能为空");
+            _= MessageService.Error("连接ID或表名不能为空");
             NavigateToTableList();
             return;
         }
@@ -174,12 +174,12 @@
             _tableInfo = await SchemaTrainingService.GetTableDetailAsync(ConnectionId, TableName);
             if (_tableInfo == null)
             {
-                await MessageService.Warning($"未找到表 '{TableName}' 的训练信息");
+                _= MessageService.Warning($"未找到表 '{TableName}' 的训练信息");
             }
         }
         catch (Exception ex)
         {
-            await MessageService.Error($"加载表详细信息失败: {ex.Message}");
+            _= MessageService.Error($"加载表详细信息失败: {ex.Message}");
         }
         finally
         {
