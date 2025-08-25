@@ -44,5 +44,21 @@ namespace Text2Sql.Net.Repositories.Text2Sql.ChatHistory
                 return false;
             }
         }
+
+        /// <inheritdoc/>
+        public async Task<bool> DeleteByConnectionIdAsync(string connectionId)
+        {
+            try
+            {
+                return await GetDB().Deleteable<ChatMessage>()
+                    .Where(m => m.ConnectionId == connectionId)
+                    .ExecuteCommandAsync() >= 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"删除聊天记录时出错：{ex.Message}");
+                return false;
+            }
+        }
     }
 } 

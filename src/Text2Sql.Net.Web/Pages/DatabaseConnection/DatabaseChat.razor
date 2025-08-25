@@ -92,6 +92,16 @@
                 </div>
 
                 <div class="chat-input-container">
+                    <div class="input-header-actions">
+                        <Button Type="@ButtonType.Text"
+                                Danger="true"
+                                OnClick="@ShowClearConfirm"
+                                Disabled="@(_selectedConnectionId == null || _chatHistory?.Count == 0)"
+                                Icon="delete">
+                            清空聊天记录
+                        </Button>
+                    </div>
+                    
                     <TextArea @bind-Value="@_userMessage"
                               Placeholder="请输入数据库相关问题，例如：查询所有用户信息"
                               AutoSize="true"
@@ -173,6 +183,17 @@
     
 </Modal>
 
+<Modal Title="确认清空"
+       Visible="@_isClearConfirmVisible"
+       OnOk="@ClearChatHistory"
+       OnCancel="@(() => _isClearConfirmVisible = false)"
+       ConfirmLoading="@_clearingHistory"
+       OkText="@("确认清空")"
+       CancelText="@("取消")">
+    <p>确定要清空当前数据库连接的所有聊天记录吗？</p>
+    <p style="color: #ff4d4f; font-size: 12px;">此操作不可撤销</p>
+</Modal>
+
 <style>
     .database-chat-container {
         display: flex;
@@ -214,6 +235,14 @@
         padding-top: 8px;
         border-top: 1px solid #f0f0f0;
         margin-top: auto;
+    }
+
+    .input-header-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #f0f0f0;
     }
 
     .input-actions {
@@ -370,17 +399,19 @@
 
 @code {
     private List<DatabaseConnectionConfig> _connections = new List<DatabaseConnectionConfig>();
-    private string _selectedConnectionId;
+    private string? _selectedConnectionId;
     private List<ChatMessage> _chatHistory = new List<ChatMessage>();
-    private string _userMessage;
+    private string? _userMessage;
     private bool _loading = false;
     private bool _loadingHistory = false;
-    private List<Dictionary<string, object>> _sqlResult;
+    private List<Dictionary<string, object>>? _sqlResult;
     private List<string> _sqlColumns = new List<string>();
     private ElementReference _chatContainerRef;
     private bool _isResultModalVisible = false;
-    private string _lastExecutedSql;
+    private string? _lastExecutedSql;
     private bool _isChartModalVisible = false;
+    private bool _isClearConfirmVisible = false;
+    private bool _clearingHistory = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -414,7 +445,7 @@
         catch (Exception ex)
         {
             Console.WriteLine($"获取数据库连接列表失败: {ex.Message}");
-            await MessageService.Error("获取数据库连接列表失败，请刷新页面重试");
+            _= MessageService.Error("获取数据库连接列表失败，请刷新页面重试");
             _connections = new List<DatabaseConnectionConfig>();
         }
     }
@@ -438,19 +469,19 @@
 
             try
             {
-                _chatHistory = await ChatService.GetChatHistoryAsync(_selectedConnectionId);
+                _chatHistory = await ChatService.GetChatHistoryAsync(_selectedConnectionId!);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"获取聊天历史失败: {ex.Message}");
-                await MessageService.Error($"加载聊天历史失败: {ex.Message}");
+                _= MessageService.Error($"加载聊天历史失败: {ex.Message}");
                 _chatHistory = new List<ChatMessage>();
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"选择数据库连接失败: {ex.Message}");
-            await MessageService.Error($"选择数据库连接失败: {ex.Message}");
+            _= MessageService.Error($"选择数据库连接失败: {ex.Message}");
         }
         finally
         {
@@ -509,7 +540,7 @@
             {
                 try
                 {
-                    await MessageService.Info("SQL执行出错，尝试优化中...");
+                    _= MessageService.Info("SQL执行出错，尝试优化中...");
 
 
                     response = await ChatService.OptimizeSqlAndExecuteAsync(_selectedConnectionId, currentMessage, response.SqlQuery, response.ExecutionError);
@@ -536,7 +567,7 @@
         catch (Exception ex)
         {
             Console.WriteLine($"处理消息失败: {ex.Message}");
-            await MessageService.Error($"处理请求时出错: {ex.Message}");
+            _= MessageService.Error($"处理请求时出错: {ex.Message}");
 
             // 如果是因为用户消息已经添加但处理失败，添加一个系统错误消息
             if (_chatHistory.Any(m => m.IsUser && m.Message == currentMessage && !_chatHistory.Any(r => !r.IsUser && r.CreateTime > m.CreateTime)))
@@ -578,7 +609,7 @@
 
             if (!string.IsNullOrEmpty(errorMessage))
             {
-                await MessageService.Error($"SQL执行错误: {errorMessage}");
+                _= MessageService.Error($"SQL执行错误: {errorMessage}");
             }
             else if (result != null)
             {
@@ -586,18 +617,18 @@
                 _sqlColumns = result.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
                 _lastExecutedSql = sql; // 记录最后执行的SQL
                 _isResultModalVisible = true; // 自动显示结果模态框
-                await MessageService.Success($"SQL执行成功，返回 {result.Count} 条记录");
+                _= MessageService.Success($"SQL执行成功，返回 {result.Count} 条记录");
             }
             else
             {
-                await MessageService.Info("SQL执行成功，但未返回数据");
+                _= MessageService.Info("SQL执行成功，但未返回数据");
                 _sqlResult = null;
                 _sqlColumns.Clear();
             }
         }
         catch (Exception ex)
         {
-            await MessageService.Error($"执行SQL时出错: {ex.Message}");
+            _= MessageService.Error($"执行SQL时出错: {ex.Message}");
         }
         finally
         {
@@ -628,12 +659,12 @@
         try
         {
             await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", sql);
-            await MessageService.Success("SQL已复制到剪贴板");
+            _= MessageService.Success("SQL已复制到剪贴板");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"复制SQL失败: {ex.Message}");
-            await MessageService.Error("复制失败，请手动选择并复制");
+            _= MessageService.Error("复制失败，请手动选择并复制");
         }
     }
 
@@ -644,7 +675,7 @@
     {
         if (_sqlResult == null || _sqlResult.Count == 0)
         {
-            await MessageService.Info("暂无可视化数据");
+            _= MessageService.Info("暂无可视化数据");
             return;
         }
 
@@ -659,7 +690,7 @@
         catch (Exception ex)
         {
             Console.WriteLine($"渲染图表失败: {ex.Message}");
-            await MessageService.Error("渲染图表失败");
+            _= MessageService.Error("渲染图表失败");
         }
     }
 
@@ -687,7 +718,58 @@
         catch (Exception ex)
         {
             Console.WriteLine($"导出失败: {ex.Message}");
-            await MessageService.Error("导出失败");
+            _= MessageService.Error("导出失败");
+        }
+    }
+
+    /// <summary>
+    /// 显示清空确认对话框
+    /// </summary>
+    private void ShowClearConfirm()
+    {
+        _isClearConfirmVisible = true;
+    }
+
+    /// <summary>
+    /// 清空聊天记录
+    /// </summary>
+    private async Task ClearChatHistory()
+    {
+        if (string.IsNullOrEmpty(_selectedConnectionId))
+        {
+            return;
+        }
+
+        try
+        {
+            _clearingHistory = true;
+            
+            var success = await ChatService.ClearChatHistoryAsync(_selectedConnectionId);
+            
+            if (success)
+            {
+                _chatHistory.Clear();
+                _sqlResult = null;
+                _sqlColumns.Clear();
+                _lastExecutedSql = null;
+                _isResultModalVisible = false;
+                
+                _= MessageService.Success("聊天记录已清空");
+            }
+            else
+            {
+                _= MessageService.Error("清空失败，请重试");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"清空聊天记录失败: {ex.Message}");
+            _= MessageService.Error($"清空失败：{ex.Message}");
+        }
+        finally
+        {
+            _clearingHistory = false;
+            _isClearConfirmVisible = false;
         }
     }
 }

@@ -76,6 +76,13 @@
             <param name="errorMessage">错误信息</param>
             <returns>AI响应（包含优化后的SQL和执行结果）</returns>
         </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IChatService.ClearChatHistoryAsync(System.String)">
+            <summary>
+            清空指定数据库连接的聊天历史
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <returns>清空结果</returns>
+        </member>
         <member name="T:Text2Sql.Net.Domain.Interface.IConversationStateManager">
             <summary>
             对话状态管理器接口
@@ -534,6 +541,9 @@
             </summary>
             <param name="sql">原始SQL字符串</param>
             <returns>清理后的SQL字符串</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.ClearChatHistoryAsync(System.String)">
+            <inheritdoc/>
         </member>
         <member name="M:Text2Sql.Net.Domain.Service.ChatService.CreateErrorResponse(System.String,System.String)">
             <summary>
@@ -1716,6 +1726,9 @@
         <member name="M:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessageRepository.InsertAsync(Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage)">
             <inheritdoc/>
         </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessageRepository.DeleteByConnectionIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
         <member name="T:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.IChatMessageRepository">
             <summary>
             聊天消息仓储接口
@@ -1733,6 +1746,13 @@
             添加聊天消息
             </summary>
             <param name="chatMessage">聊天消息</param>
+            <returns>是否成功</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.ChatHistory.IChatMessageRepository.DeleteByConnectionIdAsync(System.String)">
+            <summary>
+            删除指定连接的所有聊天记录
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
             <returns>是否成功</returns>
         </member>
         <member name="T:Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.DatabaseConnectionConfig">

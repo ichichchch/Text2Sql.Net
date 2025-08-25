@@ -41,5 +41,12 @@ namespace Text2Sql.Net.Domain.Interface
         /// <param name="errorMessage">错误信息</param>
         /// <returns>AI响应（包含优化后的SQL和执行结果）</returns>
         Task<ChatMessage> OptimizeSqlAndExecuteAsync(string connectionId, string userMessage, string originalSql, string errorMessage);
+
+        /// <summary>
+        /// 清空指定数据库连接的聊天历史
+        /// </summary>
+        /// <param name="connectionId">数据库连接ID</param>
+        /// <returns>清空结果</returns>
+        Task<bool> ClearChatHistoryAsync(string connectionId);
     }
 } 

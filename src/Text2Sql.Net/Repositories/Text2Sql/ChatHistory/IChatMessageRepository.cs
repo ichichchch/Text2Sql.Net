@@ -22,5 +22,12 @@ namespace Text2Sql.Net.Repositories.Text2Sql.ChatHistory
         /// <param name="chatMessage">聊天消息</param>
         /// <returns>是否成功</returns>
         Task<bool> InsertAsync(ChatMessage chatMessage);
+
+        /// <summary>
+        /// 删除指定连接的所有聊天记录
+        /// </summary>
+        /// <param name="connectionId">数据库连接ID</param>
+        /// <returns>是否成功</returns>
+        Task<bool> DeleteByConnectionIdAsync(string connectionId);
     }
 } 

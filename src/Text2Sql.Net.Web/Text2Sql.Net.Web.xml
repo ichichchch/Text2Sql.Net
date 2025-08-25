@@ -78,5 +78,15 @@
             打开图表预览并渲染
             </summary>
         </member>
+        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.ShowClearConfirm">
+            <summary>
+            显示清空确认对话框
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.ClearChatHistory">
+            <summary>
+            清空聊天记录
+            </summary>
+        </member>
     </members>
 </doc>

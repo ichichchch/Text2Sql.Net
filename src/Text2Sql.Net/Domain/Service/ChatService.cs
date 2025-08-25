@@ -624,6 +624,25 @@ namespace Text2Sql.Net.Domain.Service
             return sql.Trim();
         }
 
+        /// <inheritdoc/>
+        public async Task<bool> ClearChatHistoryAsync(string connectionId)
+        {
+            if (string.IsNullOrEmpty(connectionId))
+            {
+                return false;
+            }
+
+            try
+            {
+                return await _chatRepository.DeleteByConnectionIdAsync(connectionId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"清空聊天历史失败，连接ID：{connectionId}");
+                return false;
+            }
+        }
+
         /// <summary>
         /// 创建错误响应消息
         /// </summary>
