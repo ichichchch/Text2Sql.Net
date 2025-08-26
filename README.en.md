@@ -12,6 +12,15 @@
 
 ![demo1](https://github.com/AIDotNet/Text2Sql.Net/blob/main/doc/demo1.png?raw=true)
 
+### Core Features
+- **Natural Language to SQL**: Convert everyday language descriptions into SQL queries automatically
+- **Multi-Database Support**: Compatible with SQL Server, MySQL, PostgreSQL, and SQLite
+- **Intelligent Context Understanding**: Based on chat history to understand user query intent
+- **Vector Search Integration**: Support semantic similarity search
+- **Syntax Validation**: Automatically check generated SQL syntax correctness
+- **MCP Protocol Support**: Seamless integration with IDE tools (Cursor, Trae, etc.)
+- **Intelligent Q&A Example System**: Improve SQL generation accuracy through example learning
+
 This project supports SQL Server, MySQL, PostgreSQL and SQLite. Configuration example:
 
 ```json
@@ -41,6 +50,18 @@ This project supports SQL Server, MySQL, PostgreSQL and SQLite. Configuration ex
    - PostgreSQL pgvector extension support
    - Unified IVectorRepository interface
    - Cosine similarity/Euclidean distance calculations
+
+5. **Q&A Example System**
+   - Manual and correction-based example creation
+   - Semantic search for relevant examples
+   - Category organization and usage statistics
+   - Batch operations and example management
+
+6. **MCP Protocol Server**
+   - Full Text2SQL functionality via MCP tools
+   - IDE integration support (Cursor, Trae, etc.)
+   - Database schema and query execution tools
+   - Context-aware connection management
 
 ## Core Process Flow
 ```mermaid
@@ -125,45 +146,138 @@ flowchart LR
         F[SchemaTrainingService<br/>Schema Training Service]
         G[SemanticService<br/>Semantic Service]
         H[SqlExecutionService<br/>SQL Execution Service]
+        I[QAExampleService<br/>Q&A Example Service]
+        J[McpServer<br/>MCP Protocol Server]
     end
     
     subgraph "Data Access Layer"
-        I[DatabaseConnectionRepository<br/>Database Connection Repository]
-        J[ChatMessageRepository<br/>Chat Message Repository]
-        K[DatabaseSchemaRepository<br/>Schema Repository]
-        L[SchemaEmbeddingRepository<br/>Vector Embedding Repository]
+        K[DatabaseConnectionRepository<br/>Database Connection Repository]
+        L[ChatMessageRepository<br/>Chat Message Repository]
+        M[DatabaseSchemaRepository<br/>Schema Repository]
+        N[SchemaEmbeddingRepository<br/>Vector Embedding Repository]
+        O[QAExampleRepository<br/>Q&A Example Repository]
     end
     
     subgraph "External Services"
-        M[OpenAI API<br/>LLM Service]
-        N[Vector Database<br/>SQLite/PostgreSQL]
-        O[Business Database<br/>Multi-Database Support]
+        P[OpenAI API<br/>LLM Service]
+        Q[Vector Database<br/>SQLite/PostgreSQL]
+        R[Business Database<br/>Multi-Database Support]
+        S[MCP Clients<br/>IDE Tool Integration]
     end
     
     A --> E
-    B --> I
+    B --> K
     C --> E
     D --> H
     
     E --> F
     E --> G
     E --> H
-    E --> J
+    E --> L
+    E --> I
     
-    F --> K
-    F --> L
-    G --> N
-    H --> I
-    H --> O
+    F --> M
+    F --> N
+    G --> Q
+    H --> K
+    H --> R
+    I --> O
+    J --> S
     
-    E --> M
-    G --> M
+    E --> P
+    G --> P
     
     style A fill:#e1f5fe
     style E fill:#f3e5f5
-    style M fill:#fff3e0
-    style N fill:#e8f5e8
+    style P fill:#fff3e0
+    style Q fill:#e8f5e8
+    style J fill:#fce4ec
+    style I fill:#e3f2fd
 ```
+
+## 🔧 MCP Protocol Integration
+
+### Model Context Protocol (MCP) Support
+Text2Sql.Net integrates Model Context Protocol, serving as an MCP server to provide Text2SQL functionality for various AI development tools.
+
+#### Supported MCP Tools
+- `get_database_connections`: Get all database connection configurations
+- `get_database_schema`: Get database table structure information
+- `generate_sql`: Generate SQL queries from natural language
+- `execute_sql`: Execute SQL query statements
+- `get_chat_history`: Get chat history records
+- `get_table_structure`: Get detailed structure of specified tables
+- `get_all_tables`: Get all table information
+
+#### IDE Integration Configuration
+In MCP-supported IDEs (such as Cursor, Trae, etc.), you can connect to Text2Sql.Net with the following configuration:
+
+```json
+{
+  "mcpServers": {
+    "text2sql": {
+      "name": "Text2Sql.Net - sqlserver",
+      "type": "sse",
+      "description": "智能Text2SQL服务 - 。支持自然语言转SQL查询。兼容Cursor、Trae等IDE。",
+      "isActive": true,
+      "url": "http://localhost:5000/mcp/sse?connectionId=xxxxxx"
+    }
+  }
+}
+```
+
+After configuration, you can directly interact with databases using natural language in your IDE:
+- "Show the structure of all user tables"
+- "Query order data from the last week"
+- "Count the number of products in each category"
+
+### MCP Use Cases
+1. **Code Development**: Quickly generate database query code in IDE
+2. **Data Analysis**: Rapidly explore data through natural language
+3. **Report Generation**: Quickly build complex statistical queries
+4. **System Integration**: Integrate Text2SQL capabilities into other tool chains
+
+## 📚 Intelligent Q&A Example System
+
+### Q&A Example Features
+Text2Sql.Net provides an intelligent Q&A example management system that improves SQL generation accuracy through learning and accumulating examples.
+
+#### Core Features
+- **Example Management**: Support manual creation and correction-generated Q&A examples
+- **Semantic Search**: Match relevant examples based on vector similarity
+- **Category Organization**: Support basic queries, complex queries, aggregate queries, etc.
+- **Usage Statistics**: Track example usage frequency and effectiveness
+- **Batch Operations**: Support batch enable, disable, and delete examples
+
+#### Example Categories
+- **Basic Queries**: Simple SELECT statements and basic filtering
+- **Complex Queries**: Multi-table joins, subqueries, and complex scenarios
+- **Aggregate Queries**: Include GROUP BY, SUM, COUNT and other aggregate functions
+- **Join Queries**: Multi-table JOIN operations
+- **Correction Examples**: Examples generated from incorrect SQL corrections
+
+#### Intelligent Matching Mechanism
+When users input queries, the system will:
+1. Vectorize the user question
+2. Perform semantic search in the example library
+3. Return the most relevant examples (default relevance threshold 0.7)
+4. Provide relevant examples as context to LLM
+5. Update example usage statistics
+
+#### Example Format
+```json
+{
+  "question": "Query the number of active users in the last month",
+  "sqlQuery": "SELECT COUNT(DISTINCT user_id) FROM user_activities WHERE activity_date >= DATE_SUB(NOW(), INTERVAL 1 MONTH)",
+  "category": "aggregate",
+  "description": "Count distinct users with activity records in the last 30 days"
+}
+```
+
+### Example Creation Methods
+1. **Manual Creation**: Directly add Q&A pairs in the management interface
+2. **Correction Generation**: Automatically create examples when users correct wrong SQL
+3. **Batch Import**: Support batch generation of examples from existing query history
 
 ## Community
 Join our developer community through WeChat (ID: xuzeyu91) or visit [AntSK](https://demo.antsk.cn) for more RAG solutions.
