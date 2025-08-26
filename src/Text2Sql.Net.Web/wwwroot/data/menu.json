@@ -12,16 +12,9 @@
     "icon": "database"
   },
   {
+    "path": "/qa-examples-list",
     "name": "问答示例",
-    "key": "qa-examples", 
-    "icon": "question-circle",
-    "children": [
-      {
-        "path": "/qa-examples-list",
-        "name": "示例管理",
-        "key": "qa-examples-list",
-        "icon": "unordered-list"
-      }
-    ]
+    "key": "qa-examples",
+    "icon": "question-circle"
   }
 ]
