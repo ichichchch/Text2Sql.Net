@@ -274,5 +274,17 @@
             <param name="responseMessage">AI响应消息</param>
             <returns>对应的用户消息</returns>
         </member>
+        <member name="M:Text2Sql.Net.Web.Pages.QAExample.Example.ValidateForm">
+            <summary>
+            实时表单验证
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Pages.QAExample.Example.ValidateExample(Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample)">
+            <summary>
+            验证示例数据
+            </summary>
+            <param name="example">示例对象</param>
+            <returns>验证错误列表</returns>
+        </member>
     </members>
 </doc>

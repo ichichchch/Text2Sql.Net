@@ -108,7 +108,7 @@
            Size="TableSize.Middle"
            @bind-SelectedRows="_selectedRows"
            RowKey="@(x => x.Id)">
-        <Selection Key="@context.Id" Type="checkbox" />
+        <Selection Type="checkbox" />
         <PropertyColumn Property="c => c.Question" Title="用户问题" Width="300">
             <Tooltip Title="@context.Question">
                 <div class="question-text">@(context.Question.Length > 50 ? context.Question.Substring(0, 50) + "..." : context.Question)</div>
@@ -170,18 +170,45 @@
        @bind-Visible="_showEditModal"
        Width="800"
        OnOk="SaveExample"
-       OnCancel="() => _showEditModal = false">
+       OnCancel="CancelEdit"
+       ConfirmLoading="_loading">
     @if (_editingExample != null)
     {
-        <Form Model="_editingExample" LabelColSpan="4" WrapperColSpan="20">
+        @if (_validationErrors.Any())
+        {
+            <Alert Type="@AlertType.Warning" 
+                   Message="请检查以下问题：" 
+                   Description="@(string.Join("，", _validationErrors))"
+                   ShowIcon="true" 
+                   Closable="true" 
+                   Style="margin-bottom: 16px;" />
+        }
+        
+        <Form Model="_editingExample" LabelColSpan="4" WrapperColSpan="20" ValidateOnChange="true">
             <FormItem Label="用户问题" Required>
-                <TextArea @bind-Value="_editingExample.Question" Rows="3" Placeholder="请输入用户问题..." />
+                <TextArea @bind-Value="_editingExample.Question" 
+                         @bind-Value:after="ValidateForm"
+                         Rows="3" 
+                         Placeholder="请输入用户问题，例如：查询所有用户信息" 
+                         ShowCount="true"
+                         MaxLength="1000" />
+                <div class="form-help-text">
+                    <Icon Type="info-circle" /> 请输入清晰、具体的问题描述，这将帮助系统更好地理解和匹配类似问题
+                </div>
             </FormItem>
             <FormItem Label="SQL查询" Required>
-                <TextArea @bind-Value="_editingExample.SqlQuery" Rows="6" Placeholder="请输入SQL查询..." />
+                <TextArea @bind-Value="_editingExample.SqlQuery" 
+                         @bind-Value:after="ValidateForm"
+                         Rows="6" 
+                         Placeholder="请输入完整的SQL查询语句，例如：SELECT * FROM users WHERE status = 'active'" 
+                         ShowCount="true" />
+                <div class="form-help-text">
+                    <Icon Type="info-circle" /> 请确保SQL语句语法正确，支持SELECT、WITH等查询语句
+                </div>
             </FormItem>
             <FormItem Label="分类">
-                <Select TItemValue="string" TItem="string" @bind-Value="_editingExample.Category" Placeholder="选择分类" AllowClear>
+                <Select TItemValue="string" TItem="string" @bind-Value="_editingExample.Category" 
+                       Placeholder="选择示例分类以便更好地组织管理" AllowClear>
                     <SelectOptions>
                         <SelectOption TItemValue="string" TItem="string" Label="基础查询" Value="@("basic")" />
                         <SelectOption TItemValue="string" TItem="string" Label="复杂查询" Value="@("complex")" />
@@ -192,10 +219,19 @@
                 </Select>
             </FormItem>
             <FormItem Label="示例描述">
-                <TextArea @bind-Value="_editingExample.Description" Rows="3" Placeholder="请输入示例描述..." />
+                <TextArea @bind-Value="_editingExample.Description" 
+                         Rows="3" 
+                         Placeholder="可选：添加示例的详细说明或使用场景..." 
+                         ShowCount="true"
+                         MaxLength="2000" />
             </FormItem>
             <FormItem Label="是否启用">
-                <Switch @bind-Value="_editingExample.IsEnabled" />
+                <div>
+                    <Switch @bind-Value="_editingExample.IsEnabled" CheckedChildren="启用" UnCheckedChildren="禁用" />
+                    <span class="form-help-text" style="margin-left: 8px;">
+                        禁用的示例不会参与问题匹配
+                    </span>
+                </div>
             </FormItem>
         </Form>
     }
@@ -321,6 +357,23 @@
     .page-header-content {
         margin-top: 8px;
     }
+
+    .form-help-text {
+        color: #999;
+        font-size: 12px;
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .ant-form-item {
+        margin-bottom: 20px;
+    }
+
+    .ant-modal-body .ant-form {
+        padding: 8px 0;
+    }
 </style>
 
 @code {
@@ -340,7 +393,10 @@
     private bool _showEditModal = false;
     private bool _showDetailsModal = false;
     private QAExample? _editingExample;
+    private QAExample? _originalExample; // 保存原始对象用于更新时的实体追踪
     private QAExample? _viewingExample;
+    private List<string> _validationErrors = new();
+    private bool _isCreateMode = false; // 标记是否为创建模式
 
     protected override async Task OnInitializedAsync()
     {
@@ -427,11 +483,33 @@
             Source = ExampleSource.Manual,
             CreatedBy = "user"
         };
+        _originalExample = null; // 确保新建时原始对象为空
+        _isCreateMode = true; // 设置为创建模式
+        _validationErrors.Clear();
         _showEditModal = true;
+    }
+
+    private void CancelEdit()
+    {
+        _showEditModal = false;
+        _editingExample = null;
+        _originalExample = null;
+        _isCreateMode = false; // 重置创建模式标志
+        _validationErrors.Clear();
+    }
+
+    /// <summary>
+    /// 实时表单验证
+    /// </summary>
+    private void ValidateForm()
+    {
+        _validationErrors = ValidateExample(_editingExample!);
+        StateHasChanged();
     }
 
     private void ShowEditModal(QAExample example)
     {
+        // 创建一个克隆对象进行编辑，但保持正确的实体状态标识
         _editingExample = new QAExample
         {
             Id = example.Id,
@@ -449,6 +527,11 @@
             UpdateTime = example.UpdateTime,
             CreatedBy = example.CreatedBy
         };
+        
+        // 保存原始对象的引用，用于更新时的实体追踪
+        _originalExample = example;
+        _isCreateMode = false; // 设置为编辑模式
+        _validationErrors.Clear();
         _showEditModal = true;
     }
 
@@ -460,9 +543,11 @@
 
     private async Task SaveExample()
     {
-        if (string.IsNullOrWhiteSpace(_editingExample.Question) || string.IsNullOrWhiteSpace(_editingExample.SqlQuery))
+        // 详细的前端验证
+        var validationErrors = ValidateExample(_editingExample!);
+        if (validationErrors.Any())
         {
-            await MessageService.Warning("请填写必填字段");
+            await MessageService.Warning($"请检查以下问题：\n{string.Join("\n", validationErrors)}");
             return;
         }
 
@@ -470,34 +555,124 @@
         try
         {
             bool success;
-            if (string.IsNullOrEmpty(_editingExample.Id))
+            string operation;
+            
+            // 使用明确的创建模式标志而不是依赖Id判断
+            if (_isCreateMode)
             {
+                _editingExample!.CreateTime = DateTime.Now;
+                _editingExample.CreatedBy = "user";
+                operation = "创建";
                 success = await QAExampleService.AddExampleAsync(_editingExample);
             }
             else
             {
-                success = await QAExampleService.UpdateExampleAsync(_editingExample);
+                _editingExample!.UpdateTime = DateTime.Now;
+                operation = "更新";
+                
+                // 将编辑的数据复制回原始对象，确保SqlSugar能正确追踪实体状态
+                if (_originalExample != null)
+                {
+                    _originalExample.Question = _editingExample.Question;
+                    _originalExample.SqlQuery = _editingExample.SqlQuery;
+                    _originalExample.Description = _editingExample.Description;
+                    _originalExample.Category = _editingExample.Category;
+                    _originalExample.IsEnabled = _editingExample.IsEnabled;
+                    _originalExample.UpdateTime = DateTime.Now;
+                    
+                    success = await QAExampleService.UpdateExampleAsync(_originalExample);
+                }
+                else
+                {
+                    success = false;
+                }
             }
 
             if (success)
             {
-                await MessageService.Success(_editingExample.Id == null ? "创建成功" : "更新成功");
+                await MessageService.Success($"{operation}示例成功");
                 _showEditModal = false;
+                _editingExample = null;
+                _originalExample = null;
+                _isCreateMode = false; // 重置创建模式标志
+                _validationErrors.Clear();
                 await RefreshData();
             }
             else
             {
-                await MessageService.Error("操作失败");
+                await MessageService.Error($"{operation}示例失败，请检查数据库连接或联系管理员");
             }
         }
         catch (Exception ex)
         {
-            await MessageService.Error($"操作失败：{ex.Message}");
+            var errorMessage = ex.InnerException?.Message ?? ex.Message;
+            await MessageService.Error($"操作失败：{errorMessage}");
+            
+            // 记录详细错误到控制台（开发调试用）
+            Console.WriteLine($"SaveExample Error: {ex}");
         }
         finally
         {
             _loading = false;
         }
+    }
+
+    /// <summary>
+    /// 验证示例数据
+    /// </summary>
+    /// <param name="example">示例对象</param>
+    /// <returns>验证错误列表</returns>
+    private List<string> ValidateExample(QAExample example)
+    {
+        var errors = new List<string>();
+
+        if (example == null)
+        {
+            errors.Add("示例数据不能为空");
+            return errors;
+        }
+
+        // 验证必填字段
+        if (string.IsNullOrWhiteSpace(example.Question))
+        {
+            errors.Add("• 用户问题不能为空");
+        }
+        else if (example.Question.Length < 3)
+        {
+            errors.Add("• 用户问题至少需要3个字符");
+        }
+        else if (example.Question.Length > 1000)
+        {
+            errors.Add("• 用户问题不能超过1000个字符");
+        }
+
+        if (string.IsNullOrWhiteSpace(example.SqlQuery))
+        {
+            errors.Add("• SQL查询不能为空");
+        }
+        else if (example.SqlQuery.Length < 5)
+        {
+            errors.Add("• SQL查询至少需要5个字符");
+        }
+        else if (!example.SqlQuery.Trim().ToUpper().StartsWith("SELECT") && 
+                 !example.SqlQuery.Trim().ToUpper().StartsWith("WITH"))
+        {
+            errors.Add("• SQL查询必须是有效的SELECT语句");
+        }
+
+        // 验证可选字段长度
+        if (!string.IsNullOrEmpty(example.Description) && example.Description.Length > 2000)
+        {
+            errors.Add("• 示例描述不能超过2000个字符");
+        }
+
+        // 验证连接ID
+        if (string.IsNullOrWhiteSpace(example.ConnectionId))
+        {
+            errors.Add("• 数据库连接ID不能为空");
+        }
+
+        return errors;
     }
 
     private async Task UpdateExampleStatus(QAExample example, bool enabled)
