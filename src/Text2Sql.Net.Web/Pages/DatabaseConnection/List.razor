@@ -1,0 +1,482 @@
+@page "/database-connection"
+@using SqlSugar
+@using Text2Sql.Net.Domain.Model
+@using Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection
+@using Text2Sql.Net.Repositories.Text2Sql
+@using System.Text.Json
+@inject IDatabaseConnectionConfigRepository DatabaseConnectionConfigRepository
+@inject MessageService MessageService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageContainer Title="数据库连接管理">
+    <Extra>
+        <Button Type="primary" Icon="plus" @onclick="NavigateToCreate">
+            创建连接
+        </Button>
+    </Extra>
+    <Content>
+        <div class="search-container">
+            <Search Placeholder="请输入连接名称"
+                    EnterButton="@("搜索")"
+                    Style="max-width: 522px; width: 100%;"
+                    OnSearch="Search" />
+        </div>
+    </Content>
+    <ChildContent>
+        <Spin Spinning="@_loading">
+            <div class="card-list-container">
+                <Row Gutter="24">
+                    @foreach (var item in _dataList.Where(x => !string.IsNullOrEmpty(x.Id)))
+                    {
+                        <AntDesign.Col Xs="24" Sm="12" Md="12" Lg="6" Xl="6" XXl="6">
+                            <Card Hoverable Bordered Class="connection-card"
+                                  Actions="@(new[] {
+                                                use(() => NavigateToChat(item.Id)),
+                                                mcp(() => ShowMcpConfig(item.Id)),
+                                                info(() => NavigateToDetails(item.Id)),
+                                                update(() => NavigateToEdit(item.Id)),
+                                                delete(() => DeleteConnection(item.Id))
+                                            })">
+                            <CardMeta>
+                                <AvatarTemplate>
+                                        <Avatar Size="large" Icon="database" Style="background-color:#1890ff" />
+                                </AvatarTemplate>
+                                <TitleTemplate>
+                                    <div class="card-title">@item.Name</div>
+                                </TitleTemplate>
+                                <DescriptionTemplate>
+                                    <div class="card-description">
+                                        <Tag Color="@GetDbTypeColor(item.DbType)">@item.DbType</Tag>
+                                        <div class="create-time">创建时间: @(item.CreateTime.ToString("yyyy-MM-dd"))</div>
+                                    </div>
+                                </DescriptionTemplate>
+                            </CardMeta>
+                        </Card>
+                    </AntDesign.Col>
+                    }
+                </Row>
+                
+                @if (!_dataList.Any() || _dataList.Count == 1 && string.IsNullOrEmpty(_dataList[0].Id))
+                {
+                    <Empty Description="@("暂无数据连接")">
+                        <Button Type="primary" Icon="plus" @onclick="NavigateToCreate">
+                            创建连接
+                        </Button>
+                    </Empty>
+                }
+            </div>
+        </Spin>
+    </ChildContent>
+</PageContainer>
+
+@* MCP配置模态框 *@
+<Modal Title="@($"MCP 连接配置 - {_selectedConnectionName}")"
+       Visible="_mcpModalVisible"
+       OnOk="HandleMcpOk"
+       OnCancel="HandleMcpCancel"
+       Width="800">
+    <div class="mcp-config-container">
+        <Alert Type="@AlertType.Info" 
+               ShowIcon="true"
+               Message="关于 MCP (Model Context Protocol)"
+               Description="@($"MCP 是一个标准化协议，可以让AI工具（如Cursor、Trae等IDE）直接调用此数据库连接（{_selectedConnectionName}）的Text2Sql功能。配置后，您可以在IDE中通过自然语言生成SQL查询。")" 
+               Style="margin-bottom: 16px;" />
+        
+        <div class="config-section">
+            <Title Level="4">配置信息</Title>
+            <div class="config-item">
+                <Text Strong>数据库连接：</Text>
+                <Text Code>@_selectedConnectionName</Text>
+            </div>
+            
+            <div class="config-item">
+                <Text Strong>连接ID：</Text>
+                <Text Code>@_selectedConnectionId</Text>
+                <Button Type="link" Size="small" Icon="copy" @onclick="CopyConnectionIdToClipboard">复制</Button>
+            </div>
+            
+            <div class="config-item">
+                <Text Strong>MCP配置JSON：</Text>
+                <div class="json-container">
+                    <pre class="json-code">@_mcpConfigJson</pre>
+                    <Button Type="primary" Size="small" Icon="copy" @onclick="CopyJsonToClipboard" Style="position: absolute; top: 8px; right: 8px;">
+                        复制配置
+                    </Button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="usage-section">
+            <Title Level="4">使用说明</Title>
+            <div class="steps-container">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <div class="step-title">复制配置</div>
+                        <div class="step-description">点击上方"复制配置"按钮，复制MCP服务器配置JSON</div>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <div class="step-title">配置IDE</div>
+                        <div class="step-description">在Cursor、Trae等IDE的MCP设置中粘贴配置</div>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <div class="step-title">开始使用</div>
+                        <div class="step-description">在IDE中通过自然语言描述您的数据查询需求</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="features-section">
+            <Title Level="4">可用功能</Title>
+            <Row Gutter="16">
+                <AntDesign.Col Span="12">
+                    <Card Size="small">
+                        <CardMeta>
+                            <TitleTemplate>🔍 智能查询</TitleTemplate>
+                            <DescriptionTemplate>将自然语言转换为SQL查询</DescriptionTemplate>
+                        </CardMeta>
+                    </Card>
+                </AntDesign.Col>
+                <AntDesign.Col Span="12">
+                    <Card Size="small">
+                        <CardMeta>
+                            <TitleTemplate>📊 数据执行</TitleTemplate>
+                            <DescriptionTemplate>直接执行SQL并查看结果</DescriptionTemplate>
+                        </CardMeta>
+                    </Card>
+                </AntDesign.Col>
+                <AntDesign.Col Span="12">
+                    <Card Size="small">
+                        <CardMeta>
+                            <TitleTemplate>🗄️ 架构信息</TitleTemplate>
+                            <DescriptionTemplate>获取数据库表结构信息</DescriptionTemplate>
+                        </CardMeta>
+                    </Card>
+                </AntDesign.Col>
+                <AntDesign.Col Span="12">
+                    <Card Size="small">
+                        <CardMeta>
+                            <TitleTemplate>💬 历史记录</TitleTemplate>
+                            <DescriptionTemplate>查看聊天和查询历史</DescriptionTemplate>
+                        </CardMeta>
+                    </Card>
+                </AntDesign.Col>
+            </Row>
+        </div>
+    </div>
+</Modal>
+
+<style>
+    .search-container {
+        text-align: center;
+    }
+    
+    .card-list-container {
+        padding: 24px;
+        background-color: #f0f2f5;
+        border-radius: 8px;
+        min-height: 300px;
+    }
+    
+    .connection-card {
+        border-radius: 8px;
+        transition: all 0.3s;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+    }
+    
+    .connection-card:hover {
+        box-shadow: 0 8px 16px rgba(24, 144, 255, 0.2);
+        transform: translateY(-4px);
+        border-color: #1890ff;
+    }
+    
+    .card-title {
+        font-size: 16px;
+        font-weight: 500;
+        color: rgba(0, 0, 0, 0.85);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .card-description {
+        margin-top: 12px;
+    }
+    
+    .create-time {
+        margin-top: 8px;
+        font-size: 12px;
+        color: rgba(0, 0, 0, 0.45);
+    }
+    
+    .mcp-config-container {
+        padding: 8px 0;
+    }
+    
+    .config-section {
+        margin-bottom: 24px;
+    }
+    
+    .config-item {
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .json-container {
+        position: relative;
+        background: #f6f8fa;
+        border: 1px solid #d1d9e0;
+        border-radius: 6px;
+        margin-top: 8px;
+        width: 100%;
+    }
+    
+    .json-code {
+        margin: 0;
+        padding: 16px;
+        background: transparent;
+        border: none;
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        font-size: 13px;
+        line-height: 1.4;
+        color: #24292f;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        overflow-x: auto;
+    }
+    
+    .usage-section, .features-section {
+        margin-bottom: 16px;
+    }
+    
+    .steps-container {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .step-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .step-number {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #1890ff;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        flex-shrink: 0;
+    }
+    
+    .step-content {
+        flex: 1;
+    }
+    
+    .step-title {
+        font-weight: 500;
+        margin-bottom: 4px;
+        color: rgba(0, 0, 0, 0.85);
+    }
+    
+    .step-description {
+        font-size: 13px;
+        color: rgba(0, 0, 0, 0.65);
+        line-height: 1.4;
+    }
+</style>
+
+@code {
+    RenderFragment use(Action clickAction) =>@<a key="use" @onclick="@clickAction" style="color: #1890ff; font-weight: 500;">使用</a>;
+    RenderFragment mcp(Action clickAction) =>@<a key="mcp" @onclick="@clickAction" style="color: #52c41a;">MCP</a>;
+    RenderFragment info(Action clickAction) =>@<a key="info" @onclick="@clickAction">查看</a>;
+    RenderFragment update(Action clickAction) =>@<a key="edit" @onclick="@clickAction">编辑</a>;
+    RenderFragment delete(Func<Task> clickAction) => @<a key="delete" @onclick="@clickAction">删除</a> ;
+
+
+    private List<DatabaseConnectionConfig> _dataList = new List<DatabaseConnectionConfig>();
+    private bool _loading = false;
+    private int _total = 0;
+    private bool _mcpModalVisible = false;
+    private string _currentHostUrl = "";
+    private string _mcpConfigJson = "";
+    private string _selectedConnectionId = "";
+    private string _selectedConnectionName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await InitData("");
+        _currentHostUrl = NavigationManager.BaseUri.TrimEnd('/');
+    }
+
+    private async Task InitData(string searchKey)
+    {
+        _loading = true;
+        try
+        {
+            var exp = Expressionable.Create<DatabaseConnectionConfig>();
+            exp.AndIF(!string.IsNullOrEmpty(searchKey), p => p.Name.Contains(searchKey));
+            var data = await DatabaseConnectionConfigRepository.GetListAsync(exp.ToExpression());
+            _dataList = data.OrderByDescending(x => x.CreateTime).ToList();
+            _total = _dataList.Count;
+        }
+        catch (Exception ex)
+        {
+            _= MessageService.Error($"加载数据失败: {ex.Message}", 2);
+        }
+        finally
+        {
+            _loading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task Search(string searchKey)
+    {
+        await InitData(searchKey);
+    }
+
+    private void NavigateToCreate()
+    {
+        NavigationManager.NavigateTo($"/database-connection/create");
+    }
+
+    private void NavigateToDetails(string id)
+    {
+        NavigationManager.NavigateTo($"/database-connection/details/{id}");
+    }
+
+    private void NavigateToEdit(string id)
+    {
+        NavigationManager.NavigateTo($"/database-connection/create/{id}");
+    }
+
+    private void NavigateToChat(string id)
+    {
+        NavigationManager.NavigateTo($"/database-chat?connectionId={id}");
+    }
+
+    private async Task DeleteConnection(string id)
+    {
+        try
+        {
+            var success = await DatabaseConnectionConfigRepository.DeleteAsync(id);
+            if (success)
+            {
+                _= MessageService.Success("删除成功");
+                await InitData("");
+            }
+            else
+            {
+                _= MessageService.Error("删除失败");
+            }
+        }
+        catch (Exception ex)
+        {
+            _= MessageService.Error($"删除失败: {ex.Message}");
+        }
+    }
+    
+    private string GetDbTypeColor(string dbType)
+    {
+        return dbType?.ToLower() switch
+        {
+            "mysql" => "green",
+            "sqlserver" => "blue",
+            "oracle" => "red",
+            "postgresql" => "purple",
+            "sqlite" => "orange",
+            "dm" => "cyan",
+            "kingbasees" => "gold",
+            "clickhouse" => "volcano",
+            "opengauss" => "magenta",
+            _ => "geekblue"
+        };
+    }
+    
+    private void ShowMcpConfig(string connectionId)
+    {
+        _selectedConnectionId = connectionId;
+        var connection = _dataList.FirstOrDefault(c => c.Id == connectionId);
+        _selectedConnectionName = connection?.Name ?? "未知连接";
+        
+        var mcpConfig = new
+        {
+            mcpServers = new Dictionary<string, object>
+            {
+                [$"text2sql"] = new
+                {
+                    name = $"Text2Sql.Net - {_selectedConnectionName}",
+                    type = "sse",
+                    description = $"智能Text2SQL服务 - 。支持自然语言转SQL查询。兼容Cursor、Trae等IDE。",
+                    isActive = true,
+                    url = $"{_currentHostUrl}/sse?connectionId={connectionId}"
+                }
+            }
+        };
+        
+        _mcpConfigJson = JsonSerializer.Serialize(mcpConfig, new JsonSerializerOptions 
+        { 
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        });
+        
+        _mcpModalVisible = true;
+    }
+    
+    private void HandleMcpOk()
+    {
+        _mcpModalVisible = false;
+    }
+    
+    private void HandleMcpCancel()
+    {
+        _mcpModalVisible = false;
+    }
+    
+    private async Task CopyConnectionIdToClipboard()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _selectedConnectionId);
+            _ = MessageService.Success("连接ID已复制到剪贴板");
+        }
+        catch
+        {
+            _ = MessageService.Error("复制失败，请手动复制");
+        }
+    }
+    
+    private async Task CopyJsonToClipboard()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _mcpConfigJson);
+            _ = MessageService.Success("MCP配置已复制到剪贴板");
+        }
+        catch
+        {
+            _ = MessageService.Error("复制失败，请手动复制");
+        }
+    }
+} 

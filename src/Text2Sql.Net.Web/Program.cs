@@ -2,6 +2,7 @@ using AntDesign.ProLayout;
 using Text2Sql.Net;
 using Text2Sql.Net.Options;
 using Text2Sql.Net.Web.Mock;
+using Text2Sql.Net.Web.Tools;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
@@ -39,8 +40,19 @@ builder.Configuration.GetSection("Text2SqlConnection").Get<Text2SqlConnectionOpt
 //可是传入自定义Kernel，如果不传则使用默认Kernel
 builder.Services.AddText2SqlNet();
 
+// 添加MCP服务支持
+builder.Services.AddMcpServer()
+    .WithHttpTransport()
+    .WithTools<Text2SqlMcpTool>();
+
+//用户service中获取httpcontext
+builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
+
+// 初始化MCP上下文帮助类
+var httpContextAccessor = app.Services.GetRequiredService<IHttpContextAccessor>();
+Text2SqlMcpContextHelper.Initialize(httpContextAccessor);
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -65,5 +77,11 @@ app.MapFallbackToPage("/_Host");
 app.UseAuthorization();
 
 app.MapControllers();
+
+// 添加MCP端点映射
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapMcp();
+});
 
 app.Run();
