@@ -10,5 +10,18 @@
     "name": "数据库连接",
     "key": "database-connection",
     "icon": "database"
+  },
+  {
+    "name": "问答示例",
+    "key": "qa-examples", 
+    "icon": "question-circle",
+    "children": [
+      {
+        "path": "/qa-examples-list",
+        "name": "示例管理",
+        "key": "qa-examples-list",
+        "icon": "unordered-list"
+      }
+    ]
   }
 ]

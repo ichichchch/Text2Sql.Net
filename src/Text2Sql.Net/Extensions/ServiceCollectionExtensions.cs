@@ -109,8 +109,8 @@ namespace Microsoft.Extensions.DependencyInjection
 
             // 创建数据库（如果不存在）
             _repository.GetDB().DbMaintenance.CreateDatabase();
-            // 在所有程序集中查找具有[SugarTable]特性的类
-            var assembly = Assembly.GetExecutingAssembly();
+            // 在Text2Sql.Net程序集中查找具有[SugarTable]特性的类
+            var assembly = Assembly.Load("Text2Sql.Net");
             // 获取该程序集中所有具有SugarTable特性的类型
             var entityTypes = assembly.GetTypes()
                     .Where(type => TypeIsEntity(type));

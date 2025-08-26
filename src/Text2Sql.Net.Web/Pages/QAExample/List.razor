@@ -1,0 +1,636 @@
+@page "/qa-examples/{connectionId}"
+@using Text2Sql.Net.Domain.Interface
+@using Text2Sql.Net.Repositories.Text2Sql.QAExample
+@using Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection
+@inject IQAExampleService QAExampleService
+@inject IDatabaseConnectionConfigRepository ConnectionRepository
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@inject IMessageService MessageService
+
+<PageHeader Class="site-page-header">
+    <PageHeaderTitle>
+        <div>
+            <Icon Type="question-circle" Theme="outline" />
+            问答示例管理
+        </div>
+    </PageHeaderTitle>
+    <PageHeaderContent>
+        <div class="page-header-content">
+            <Descriptions Size="small" Column="2">
+                <DescriptionsItem Title="数据库连接">@(_connection?.Name)</DescriptionsItem>
+                <DescriptionsItem Title="示例总数">@_examples.Count</DescriptionsItem>
+            </Descriptions>
+        </div>
+    </PageHeaderContent>
+    <PageHeaderExtra>
+        <Space>
+            <SpaceItem>
+                <Button Type="@ButtonType.Primary" Icon="plus" OnClick="ShowCreateModal">
+                    创建示例
+                </Button>
+            </SpaceItem>
+            <SpaceItem>
+                <Button Icon="reload" OnClick="RefreshData">
+                    刷新
+                </Button>
+            </SpaceItem>
+        </Space>
+    </PageHeaderExtra>
+</PageHeader>
+
+<Card>
+    <div class="table-tools">
+        <Row Gutter="16">
+            <Col Span="6">
+                <Input Placeholder="搜索问题或SQL..." @bind-Value="_searchKeyword" OnPressEnter="SearchExamples" />
+            </Col>
+            <Col Span="4">
+                <Select TItemValue="string" TItem="string" Placeholder="选择分类" @bind-Value="_selectedCategory" OnSelectedItemChanged="OnCategoryChanged" AllowClear>
+                    <SelectOptions>
+                        <SelectOption TItemValue="string" TItem="string" Label="全部" Value="@("")" />
+                        <SelectOption TItemValue="string" TItem="string" Label="基础查询" Value="@("basic")" />
+                        <SelectOption TItemValue="string" TItem="string" Label="复杂查询" Value="@("complex")" />
+                        <SelectOption TItemValue="string" TItem="string" Label="聚合查询" Value="@("aggregate")" />
+                        <SelectOption TItemValue="string" TItem="string" Label="连接查询" Value="@("join")" />
+                        <SelectOption TItemValue="string" TItem="string" Label="修正示例" Value="@("correction")" />
+                    </SelectOptions>
+                </Select>
+            </Col>
+            <Col Span="4">
+                <Select TItemValue="string" TItem="string" Placeholder="状态筛选" @bind-Value="_statusFilter" OnSelectedItemChanged="OnStatusChanged">
+                    <SelectOptions>
+                        <SelectOption TItemValue="string" TItem="string" Label="全部" Value="@("")" />
+                        <SelectOption TItemValue="string" TItem="string" Label="启用" Value="@("enabled")" />
+                        <SelectOption TItemValue="string" TItem="string" Label="禁用" Value="@("disabled")" />
+                    </SelectOptions>
+                </Select>
+            </Col>
+            <Col Span="4">
+                <Button Type="@ButtonType.Primary" Icon="search" OnClick="SearchExamples">
+                    搜索
+                </Button>
+            </Col>
+            <Col Span="6">
+                <Space>
+                    <SpaceItem>
+                        <Dropdown Trigger="new Trigger[] { Trigger.Click }">
+                            <Overlay>
+                                <Menu>
+                                    <MenuItem OnClick="() => BatchUpdateStatus(true)">
+                                        <Icon Type="check" /> 启用选中
+                                    </MenuItem>
+                                    <MenuItem OnClick="() => BatchUpdateStatus(false)">
+                                        <Icon Type="close" /> 禁用选中
+                                    </MenuItem>
+                                    <MenuDivider />
+                                    <MenuItem OnClick="BatchDelete">
+                                        <Icon Type="delete" /> 删除选中
+                                    </MenuItem>
+                                </Menu>
+                            </Overlay>
+                            <ChildContent>
+                                <Button Disabled="!_selectedRows.Any()">
+                                    批量操作 <Icon Type="down" />
+                                </Button>
+                            </ChildContent>
+                        </Dropdown>
+                    </SpaceItem>
+                </Space>
+            </Col>
+        </Row>
+    </div>
+
+    <Table @ref="_table"
+           TItem="QAExample"
+           DataSource="_filteredExamples"
+           Loading="_loading"
+           Size="TableSize.Middle"
+           @bind-SelectedRows="_selectedRows"
+           RowKey="@(x => x.Id)">
+        <Selection Key="@context.Id" Type="checkbox" />
+        <PropertyColumn Property="c => c.Question" Title="用户问题" Width="300">
+            <Tooltip Title="@context.Question">
+                <div class="question-text">@(context.Question.Length > 50 ? context.Question.Substring(0, 50) + "..." : context.Question)</div>
+            </Tooltip>
+        </PropertyColumn>
+        <PropertyColumn Property="c => c.SqlQuery" Title="SQL查询" Width="400">
+            <div class="sql-text">
+                <Tooltip Title="@context.SqlQuery">
+                    <code>@(context.SqlQuery.Length > 80 ? context.SqlQuery.Substring(0, 80) + "..." : context.SqlQuery)</code>
+                </Tooltip>
+            </div>
+        </PropertyColumn>
+        <PropertyColumn Property="c => c.Category" Title="分类" Width="100">
+            @if (!string.IsNullOrEmpty(context.Category))
+            {
+                <Tag Color="@GetCategoryColor(context.Category)">@GetCategoryDisplay(context.Category)</Tag>
+            }
+        </PropertyColumn>
+        <PropertyColumn Property="c => c.Source" Title="来源" Width="80">
+            <Tag Color="@(context.Source == ExampleSource.Manual ? "blue" : "orange")">
+                @(context.Source == ExampleSource.Manual ? "手动" : "修正")
+            </Tag>
+        </PropertyColumn>
+        <PropertyColumn Property="c => c.IsEnabled" Title="状态" Width="80">
+            <Switch @bind-Value="context.IsEnabled" OnChange="@(async (bool enabled) => await UpdateExampleStatus(context, enabled))" />
+        </PropertyColumn>
+        <PropertyColumn Property="c => c.UsageCount" Title="使用次数" Width="100">
+            <Badge Count="context.UsageCount" ShowZero />
+        </PropertyColumn>
+        <PropertyColumn Property="c => c.CreateTime" Title="创建时间" Width="150">
+            @context.CreateTime.ToString("yyyy-MM-dd HH:mm")
+        </PropertyColumn>
+        <ActionColumn Title="操作" Width="150">
+            <Space>
+                <SpaceItem>
+                    <Button Size="@ButtonSize.Small" OnClick="() => ShowDetailsModal(context)">
+                        详情
+                    </Button>
+                </SpaceItem>
+                <SpaceItem>
+                    <Button Size="@ButtonSize.Small" OnClick="() => ShowEditModal(context)">
+                        编辑
+                    </Button>
+                </SpaceItem>
+                <SpaceItem>
+                    <Popconfirm Title="确定要删除这个示例吗？" OnConfirm="() => DeleteExample(context)" OkText="确定" CancelText="取消">
+                        <Button Size="@ButtonSize.Small" Danger>
+                            删除
+                        </Button>
+                    </Popconfirm>
+                </SpaceItem>
+            </Space>
+        </ActionColumn>
+    </Table>
+</Card>
+
+<!-- 创建/编辑示例弹窗 -->
+<Modal Title="@(_editingExample?.Id == null ? "创建问答示例" : "编辑问答示例")"
+       @bind-Visible="_showEditModal"
+       Width="800"
+       OnOk="SaveExample"
+       OnCancel="() => _showEditModal = false">
+    @if (_editingExample != null)
+    {
+        <Form Model="_editingExample" LabelColSpan="4" WrapperColSpan="20">
+            <FormItem Label="用户问题" Required>
+                <TextArea @bind-Value="_editingExample.Question" Rows="3" Placeholder="请输入用户问题..." />
+            </FormItem>
+            <FormItem Label="SQL查询" Required>
+                <TextArea @bind-Value="_editingExample.SqlQuery" Rows="6" Placeholder="请输入SQL查询..." />
+            </FormItem>
+            <FormItem Label="分类">
+                <Select TItemValue="string" TItem="string" @bind-Value="_editingExample.Category" Placeholder="选择分类" AllowClear>
+                    <SelectOptions>
+                        <SelectOption TItemValue="string" TItem="string" Label="基础查询" Value="@("basic")" />
+                        <SelectOption TItemValue="string" TItem="string" Label="复杂查询" Value="@("complex")" />
+                        <SelectOption TItemValue="string" TItem="string" Label="聚合查询" Value="@("aggregate")" />
+                        <SelectOption TItemValue="string" TItem="string" Label="连接查询" Value="@("join")" />
+                        <SelectOption TItemValue="string" TItem="string" Label="修正示例" Value="@("correction")" />
+                    </SelectOptions>
+                </Select>
+            </FormItem>
+            <FormItem Label="示例描述">
+                <TextArea @bind-Value="_editingExample.Description" Rows="3" Placeholder="请输入示例描述..." />
+            </FormItem>
+            <FormItem Label="是否启用">
+                <Switch @bind-Value="_editingExample.IsEnabled" />
+            </FormItem>
+        </Form>
+    }
+</Modal>
+
+<!-- 详情查看弹窗 -->
+<Modal Title="问答示例详情"
+       @bind-Visible="_showDetailsModal"
+       Width="900"
+       Footer="null">
+    @if (_viewingExample != null)
+    {
+        <Descriptions Bordered Column="1">
+            <DescriptionsItem Title="用户问题">
+                <div class="detail-text">@_viewingExample.Question</div>
+            </DescriptionsItem>
+            <DescriptionsItem Title="SQL查询">
+                <div class="sql-code">
+                    <pre><code>@_viewingExample.SqlQuery</code></pre>
+                </div>
+            </DescriptionsItem>
+            <DescriptionsItem Title="示例描述">
+                <div class="detail-text">@(_viewingExample.Description ?? "无")</div>
+            </DescriptionsItem>
+            <DescriptionsItem Title="分类">
+                @if (!string.IsNullOrEmpty(_viewingExample.Category))
+                {
+                    <Tag Color="@GetCategoryColor(_viewingExample.Category)">@GetCategoryDisplay(_viewingExample.Category)</Tag>
+                }
+                else
+                {
+                    <span>无</span>
+                }
+            </DescriptionsItem>
+            <DescriptionsItem Title="来源">
+                <Tag Color="@(_viewingExample.Source == ExampleSource.Manual ? "blue" : "orange")">
+                    @(_viewingExample.Source == ExampleSource.Manual ? "手动创建" : "修正生成")
+                </Tag>
+            </DescriptionsItem>
+            <DescriptionsItem Title="状态">
+                <Tag Color="@(_viewingExample.IsEnabled ? "success" : "default")">
+                    @(_viewingExample.IsEnabled ? "启用" : "禁用")
+                </Tag>
+            </DescriptionsItem>
+            <DescriptionsItem Title="使用统计">
+                使用次数: <Badge Count="_viewingExample.UsageCount" ShowZero />
+                @if (_viewingExample.LastUsedTime.HasValue)
+                {
+                    <br />
+                    <span>最后使用: @_viewingExample.LastUsedTime.Value.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                }
+            </DescriptionsItem>
+            @if (!string.IsNullOrEmpty(_viewingExample.OriginalIncorrectSql))
+            {
+                <DescriptionsItem Title="原始错误SQL">
+                    <div class="sql-code error">
+                        <pre><code>@_viewingExample.OriginalIncorrectSql</code></pre>
+                    </div>
+                </DescriptionsItem>
+            }
+            <DescriptionsItem Title="创建信息">
+                创建时间: @_viewingExample.CreateTime.ToString("yyyy-MM-dd HH:mm:ss")<br />
+                @if (!string.IsNullOrEmpty(_viewingExample.CreatedBy))
+                {
+                    <span>创建者: @_viewingExample.CreatedBy</span><br />
+                }
+                @if (_viewingExample.UpdateTime.HasValue)
+                {
+                    <span>更新时间: @_viewingExample.UpdateTime.Value.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                }
+            </DescriptionsItem>
+        </Descriptions>
+    }
+</Modal>
+
+<style>
+    .table-tools {
+        margin-bottom: 16px;
+    }
+
+    .question-text {
+        max-width: 280px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .sql-text {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 12px;
+        max-width: 380px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .detail-text {
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .sql-code {
+        background-color: #f6f8fa;
+        border: 1px solid #e1e4e8;
+        border-radius: 6px;
+        padding: 12px;
+        margin: 8px 0;
+    }
+
+    .sql-code.error {
+        background-color: #ffeaea;
+        border-color: #ff4d4f;
+    }
+
+    .sql-code pre {
+        margin: 0;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 13px;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .page-header-content {
+        margin-top: 8px;
+    }
+</style>
+
+@code {
+    [Parameter] public string ConnectionId { get; set; } = string.Empty;
+
+    private DatabaseConnectionConfig? _connection;
+    private List<QAExample> _examples = new();
+    private List<QAExample> _filteredExamples = new();
+    private IEnumerable<QAExample> _selectedRows = new List<QAExample>();
+    private Table<QAExample>? _table;
+
+    private bool _loading = false;
+    private string _searchKeyword = "";
+    private string _selectedCategory = "";
+    private string _statusFilter = "";
+
+    private bool _showEditModal = false;
+    private bool _showDetailsModal = false;
+    private QAExample? _editingExample;
+    private QAExample? _viewingExample;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadConnectionInfo();
+        await RefreshData();
+    }
+
+    private async Task LoadConnectionInfo()
+    {
+        _connection = await ConnectionRepository.GetByIdAsync(ConnectionId);
+    }
+
+    private async Task RefreshData()
+    {
+        _loading = true;
+        try
+        {
+            _examples = await QAExampleService.GetExamplesByConnectionIdAsync(ConnectionId);
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"加载数据失败：{ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        var filteredQuery = _examples.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(_searchKeyword))
+        {
+            filteredQuery = filteredQuery.Where(x => 
+                x.Question.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase) ||
+                x.SqlQuery.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(x.Description) && x.Description.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        if (!string.IsNullOrEmpty(_selectedCategory))
+        {
+            filteredQuery = filteredQuery.Where(x => x.Category == _selectedCategory);
+        }
+
+        if (!string.IsNullOrEmpty(_statusFilter))
+        {
+            if (_statusFilter == "enabled")
+                filteredQuery = filteredQuery.Where(x => x.IsEnabled);
+            else if (_statusFilter == "disabled")
+                filteredQuery = filteredQuery.Where(x => !x.IsEnabled);
+        }
+
+        _filteredExamples = filteredQuery.OrderByDescending(x => x.CreateTime).ToList();
+    }
+
+    private Task SearchExamples()
+    {
+        ApplyFilters();
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private void OnCategoryChanged(string category)
+    {
+        _selectedCategory = category;
+        ApplyFilters();
+    }
+
+    private void OnStatusChanged(string status)
+    {
+        _statusFilter = status;
+        ApplyFilters();
+    }
+
+    private void ShowCreateModal()
+    {
+        _editingExample = new QAExample
+        {
+            ConnectionId = ConnectionId,
+            IsEnabled = true,
+            Source = ExampleSource.Manual,
+            CreatedBy = "user"
+        };
+        _showEditModal = true;
+    }
+
+    private void ShowEditModal(QAExample example)
+    {
+        _editingExample = new QAExample
+        {
+            Id = example.Id,
+            ConnectionId = example.ConnectionId,
+            Question = example.Question,
+            SqlQuery = example.SqlQuery,
+            Description = example.Description,
+            Category = example.Category,
+            IsEnabled = example.IsEnabled,
+            Source = example.Source,
+            OriginalIncorrectSql = example.OriginalIncorrectSql,
+            UsageCount = example.UsageCount,
+            LastUsedTime = example.LastUsedTime,
+            CreateTime = example.CreateTime,
+            UpdateTime = example.UpdateTime,
+            CreatedBy = example.CreatedBy
+        };
+        _showEditModal = true;
+    }
+
+    private void ShowDetailsModal(QAExample example)
+    {
+        _viewingExample = example;
+        _showDetailsModal = true;
+    }
+
+    private async Task SaveExample()
+    {
+        if (string.IsNullOrWhiteSpace(_editingExample.Question) || string.IsNullOrWhiteSpace(_editingExample.SqlQuery))
+        {
+            await MessageService.Warning("请填写必填字段");
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            bool success;
+            if (string.IsNullOrEmpty(_editingExample.Id))
+            {
+                success = await QAExampleService.AddExampleAsync(_editingExample);
+            }
+            else
+            {
+                success = await QAExampleService.UpdateExampleAsync(_editingExample);
+            }
+
+            if (success)
+            {
+                await MessageService.Success(_editingExample.Id == null ? "创建成功" : "更新成功");
+                _showEditModal = false;
+                await RefreshData();
+            }
+            else
+            {
+                await MessageService.Error("操作失败");
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"操作失败：{ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task UpdateExampleStatus(QAExample example, bool enabled)
+    {
+        try
+        {
+            example.IsEnabled = enabled;
+            var success = await QAExampleService.UpdateExampleAsync(example);
+            if (success)
+            {
+                await MessageService.Success($"已{(enabled ? "启用" : "禁用")}示例");
+            }
+            else
+            {
+                await MessageService.Error("状态更新失败");
+                example.IsEnabled = !enabled; // 回滚
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"状态更新失败：{ex.Message}");
+            example.IsEnabled = !enabled; // 回滚
+        }
+    }
+
+    private async Task DeleteExample(QAExample example)
+    {
+        try
+        {
+            var success = await QAExampleService.DeleteExampleAsync(example.Id);
+            if (success)
+            {
+                await MessageService.Success("删除成功");
+                await RefreshData();
+            }
+            else
+            {
+                await MessageService.Error("删除失败");
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"删除失败：{ex.Message}");
+        }
+    }
+
+    private async Task BatchUpdateStatus(bool enabled)
+    {
+        if (!_selectedRows.Any())
+        {
+            await MessageService.Warning("请选择要操作的示例");
+            return;
+        }
+
+        try
+        {
+            var ids = _selectedRows.Select(x => x.Id).ToList();
+            var success = await QAExampleService.BatchUpdateEnabledAsync(ids, enabled);
+            if (success)
+            {
+                await MessageService.Success($"批量{(enabled ? "启用" : "禁用")}成功");
+                await RefreshData();
+                _selectedRows = new List<QAExample>();
+            }
+            else
+            {
+                await MessageService.Error("批量操作失败");
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"批量操作失败：{ex.Message}");
+        }
+    }
+
+    private async Task BatchDelete()
+    {
+        if (!_selectedRows.Any())
+        {
+            await MessageService.Warning("请选择要删除的示例");
+            return;
+        }
+
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"确定要删除选中的 {_selectedRows.Count()} 个示例吗？");
+        if (!confirmed) return;
+
+        try
+        {
+            var tasks = _selectedRows.Select(x => QAExampleService.DeleteExampleAsync(x.Id));
+            var results = await Task.WhenAll(tasks);
+            
+            var successCount = results.Count(r => r);
+            if (successCount > 0)
+            {
+                await MessageService.Success($"成功删除 {successCount} 个示例");
+                await RefreshData();
+                _selectedRows = new List<QAExample>();
+            }
+            
+            if (successCount < results.Length)
+            {
+                await MessageService.Warning($"部分删除失败，成功：{successCount}，失败：{results.Length - successCount}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"批量删除失败：{ex.Message}");
+        }
+    }
+
+    private string GetCategoryColor(string category)
+    {
+        return category switch
+        {
+            "basic" => "blue",
+            "complex" => "purple",
+            "aggregate" => "orange",
+            "join" => "green",
+            "correction" => "red",
+            _ => "default"
+        };
+    }
+
+    private string GetCategoryDisplay(string category)
+    {
+        return category switch
+        {
+            "basic" => "基础查询",
+            "complex" => "复杂查询",
+            "aggregate" => "聚合查询",
+            "join" => "连接查询",
+            "correction" => "修正示例",
+            _ => category
+        };
+    }
+}

@@ -36,6 +36,7 @@ namespace Text2Sql.Net.Domain.Service
         private readonly IAdvancedPromptService _promptService;
         private readonly IExecutionFeedbackOptimizer _feedbackOptimizer;
         private readonly IConversationStateManager _conversationManager;
+        private readonly IQAExampleService _qaExampleService;
         private readonly Kernel _kernel;
         private readonly ILogger<ChatService> _logger;
 
@@ -52,6 +53,7 @@ namespace Text2Sql.Net.Domain.Service
             IAdvancedPromptService promptService,
             IExecutionFeedbackOptimizer feedbackOptimizer,
             IConversationStateManager conversationManager,
+            IQAExampleService qaExampleService,
             Kernel kernel,
             ILogger<ChatService> logger)
         {
@@ -64,6 +66,7 @@ namespace Text2Sql.Net.Domain.Service
             _promptService = promptService;
             _feedbackOptimizer = feedbackOptimizer;
             _conversationManager = conversationManager;
+            _qaExampleService = qaExampleService;
             _kernel = kernel;
             _logger = logger;
         }
@@ -107,7 +110,16 @@ namespace Text2Sql.Net.Domain.Service
                     _logger.LogInformation($"检测到后续查询类型：{followupType}，解析后消息：{resolvedMessage}");
                 }
 
-                // 2. 智能Schema Linking：获取相关表结构
+                // 2. 获取相关的问答示例
+                var relevantExamples = await _qaExampleService.GetRelevantExamplesAsync(connectionId, resolvedMessage, limit: 3, minRelevanceScore: 0.6);
+                string examplesPrompt = string.Empty;
+                if (relevantExamples.Count > 0)
+                {
+                    examplesPrompt = _qaExampleService.FormatExamplesForPrompt(relevantExamples);
+                    _logger.LogInformation($"找到{relevantExamples.Count}个相关问答示例");
+                }
+
+                // 3. 智能Schema Linking：获取相关表结构
                 var schemaLinkingResult = await _schemaLinkingService.GetRelevantSchemaAsync(connectionId, resolvedMessage);
                 if (!schemaLinkingResult.Success)
                 {
@@ -116,13 +128,14 @@ namespace Text2Sql.Net.Domain.Service
 
                 var connectionConfig = await _connectionRepository.GetByIdAsync(connectionId);
 
-                // 3. 高级Prompt工程：生成优化的Prompt
-                var optimizedPrompt = await _promptService.CreateProgressivePromptAsync(
+                // 4. 高级Prompt工程：生成优化的Prompt（包含问答示例）
+                var optimizedPrompt = await _promptService.CreateProgressivePromptWithExamplesAsync(
                     resolvedMessage, 
                     schemaLinkingResult.SchemaJson, 
-                    connectionConfig.DbType);
+                    connectionConfig.DbType,
+                    examplesPrompt);
 
-                // 4. 使用优化Prompt生成SQL
+                // 5. 使用优化Prompt生成SQL
                 string sqlQuery = await GenerateSqlWithAdvancedPromptAsync(optimizedPrompt);
                 if (string.IsNullOrEmpty(sqlQuery))
                 {
@@ -131,7 +144,7 @@ namespace Text2Sql.Net.Domain.Service
 
                 _logger.LogInformation($"生成的SQL：{sqlQuery}");
 
-                // 5. SQL安全检查
+                // 6. SQL安全检查
                 var isSafeQuery = await CheckSqlAsync(sqlQuery);
                 if (!isSafeQuery)
                 {
@@ -149,11 +162,11 @@ namespace Text2Sql.Net.Domain.Service
                     return responseMessage;
                 }
 
-                // 6. 执行反馈优化：尝试执行并迭代优化
+                // 7. 执行反馈优化：尝试执行并迭代优化
                 var optimizationResult = await _feedbackOptimizer.OptimizeWithFeedbackAsync(
                     connectionId, resolvedMessage, schemaLinkingResult.SchemaJson, sqlQuery);
 
-                // 7. 创建响应消息
+                // 8. 创建响应消息
                 var finalResponseMessage = new ChatMessage
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -175,7 +188,7 @@ namespace Text2Sql.Net.Domain.Service
                     finalResponseMessage.ExecutionError = finalError;
                     finalResponseMessage.QueryResult = finalResult ?? new List<Dictionary<string, object>>();
 
-                    // 8. 更新对话上下文
+                    // 9. 更新对话上下文
                     await _conversationManager.UpdateContextAsync(
                         connectionId, userMessage, finalResponseMessage.Message, 
                         optimizationResult.FinalSql, finalResult ?? new List<Dictionary<string, object>>());
@@ -187,7 +200,7 @@ namespace Text2Sql.Net.Domain.Service
                     finalResponseMessage.QueryResult = new List<Dictionary<string, object>>();
                 }
 
-                // 9. 保存聊天记录
+                // 10. 保存聊天记录
                 await _chatRepository.InsertAsync(finalResponseMessage);
 
                 _logger.LogInformation($"查询处理完成，优化迭代次数：{optimizationResult.OptimizationSteps.Count}");
@@ -622,6 +635,28 @@ namespace Text2Sql.Net.Domain.Service
             sql = string.Join("\n", sql.Split('\n').Where(line => !string.IsNullOrWhiteSpace(line)));
             
             return sql.Trim();
+        }
+
+        /// <summary>
+        /// 从修正创建问答示例
+        /// </summary>
+        /// <param name="connectionId">数据库连接ID</param>
+        /// <param name="userQuestion">用户问题</param>
+        /// <param name="correctSql">正确的SQL</param>
+        /// <param name="incorrectSql">错误的SQL</param>
+        /// <param name="description">描述</param>
+        /// <returns>是否成功</returns>
+        public async Task<bool> CreateExampleFromCorrectionAsync(string connectionId, string userQuestion, string correctSql, string incorrectSql = null, string description = null)
+        {
+            try
+            {
+                return await _qaExampleService.CreateFromCorrectionAsync(connectionId, userQuestion, correctSql, incorrectSql, description);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"从修正创建问答示例时出错：{ex.Message}");
+                return false;
+            }
         }
 
         /// <inheritdoc/>

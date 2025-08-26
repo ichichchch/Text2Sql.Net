@@ -1,0 +1,180 @@
+@page "/qa-examples-list"
+@using Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection
+@inject IDatabaseConnectionConfigRepository ConnectionRepository
+@inject NavigationManager Navigation
+
+<PageHeader Class="site-page-header">
+    <PageHeaderTitle>
+        <div>
+            <Icon Type="question-circle" Theme="outline" />
+            问答示例管理
+        </div>
+    </PageHeaderTitle>
+    <PageHeaderContent>
+        <div class="page-header-content">
+            <p>管理各数据库连接的问答示例，用于改进SQL生成的准确性</p>
+        </div>
+    </PageHeaderContent>
+</PageHeader>
+
+<Card>
+    @if (_loading)
+    {
+        <div class="loading-container">
+            <Spin Tip="正在加载数据库连接..." />
+        </div>
+    }
+    else if (_connections.Any())
+    {
+        <div class="connections-grid">
+            @foreach (var connection in _connections)
+            {
+                <div class="clickable-card-wrapper" @onclick="@(() => NavigateToExamples(connection.Id))">
+                    <Card Hoverable="true" Class="connection-card">
+                        <CardMeta Title="@connection.Name" 
+                                  Description="@GetConnectionDescription(connection)">
+                            <AvatarTemplate>
+                                <Avatar Icon="database" />
+                            </AvatarTemplate>
+                        </CardMeta>
+                        <div class="card-actions" @onclick:stopPropagation="true">
+                            <Space>
+                                <SpaceItem>
+                                    <Button Type="@ButtonType.Primary" 
+                                            Size="@ButtonSize.Small"
+                                            OnClick="() => NavigateToExamples(connection.Id)">
+                                        管理示例
+                                    </Button>
+                                </SpaceItem>
+                                <SpaceItem>
+                                    <Button Size="@ButtonSize.Small"
+                                            OnClick="() => NavigateToChat(connection.Id)">
+                                        对话测试
+                                    </Button>
+                                </SpaceItem>
+                            </Space>
+                        </div>
+                    </Card>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <Empty Description="@("暂无数据库连接")">
+            <ChildContent>
+                <Button Type="@ButtonType.Primary" OnClick="NavigateToConnectionCreate">
+                    创建数据库连接
+                </Button>
+            </ChildContent>
+        </Empty>
+    }
+</Card>
+
+<style>
+    .loading-container {
+        text-align: center;
+        padding: 60px 0;
+    }
+
+    .connections-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+    }
+
+    .connection-card {
+        min-height: 200px;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+
+
+    .clickable-card-wrapper {
+        cursor: pointer;
+        display: block;
+    }
+
+    .clickable-card-wrapper:hover .connection-card {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-actions {
+        position: absolute;
+        bottom: 16px;
+        right: 16px;
+    }
+
+    .page-header-content {
+        margin-top: 8px;
+        color: #666;
+    }
+</style>
+
+@code {
+    private List<DatabaseConnectionConfig> _connections = new();
+    private bool _loading = true;
+
+    private RenderFragment cardAvatar = @<Avatar Icon="database" Style="background-color: #1890ff;" />;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadConnections();
+    }
+
+    private async Task LoadConnections()
+    {
+        try
+        {
+            _loading = true;
+            _connections = await ConnectionRepository.GetListAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"加载数据库连接失败: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void NavigateToExamples(string connectionId)
+    {
+        Navigation.NavigateTo($"/qa-examples/{connectionId}");
+    }
+
+    private void NavigateToChat(string connectionId)
+    {
+        Navigation.NavigateTo($"/database-chat/{connectionId}");
+    }
+
+    private void NavigateToConnectionCreate()
+    {
+        Navigation.NavigateTo("/database-connection");
+    }
+
+    private string GetConnectionDescription(DatabaseConnectionConfig connection)
+    {
+        var parts = new List<string>();
+        
+        if (!string.IsNullOrEmpty(connection.DbType))
+        {
+            parts.Add($"类型: {connection.DbType}");
+        }
+        
+        if (!string.IsNullOrEmpty(connection.Description))
+        {
+            parts.Add(connection.Description);
+        }
+        else if (!string.IsNullOrEmpty(connection.Database))
+        {
+            parts.Add($"数据库: {connection.Database}");
+        }
+
+        return string.Join(" | ", parts);
+    }
+}

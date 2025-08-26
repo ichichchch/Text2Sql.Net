@@ -16,6 +16,17 @@ namespace Text2Sql.Net.Domain.Interface
         /// <param name="userProfile">用户画像（可选）</param>
         /// <returns>优化后的Prompt</returns>
         Task<string> CreateProgressivePromptAsync(string userMessage, string schemaInfo, string dbType, UserProfile userProfile = null);
+
+        /// <summary>
+        /// 创建包含问答示例的渐进式复杂度Prompt
+        /// </summary>
+        /// <param name="userMessage">用户查询</param>
+        /// <param name="schemaInfo">Schema信息</param>
+        /// <param name="dbType">数据库类型</param>
+        /// <param name="examplesPrompt">格式化的问答示例</param>
+        /// <param name="userProfile">用户画像（可选）</param>
+        /// <returns>优化后的Prompt</returns>
+        Task<string> CreateProgressivePromptWithExamplesAsync(string userMessage, string schemaInfo, string dbType, string examplesPrompt, UserProfile userProfile = null);
     }
 }
 

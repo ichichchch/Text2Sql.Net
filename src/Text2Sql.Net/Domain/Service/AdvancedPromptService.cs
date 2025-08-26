@@ -39,9 +39,28 @@ namespace Text2Sql.Net.Domain.Service
             string dbType, 
             UserProfile userProfile = null)
         {
+            return await CreateProgressivePromptWithExamplesAsync(userMessage, schemaInfo, dbType, string.Empty, userProfile);
+        }
+
+        /// <summary>
+        /// 创建包含问答示例的渐进式复杂度Prompt
+        /// </summary>
+        /// <param name="userMessage">用户查询</param>
+        /// <param name="schemaInfo">Schema信息</param>
+        /// <param name="dbType">数据库类型</param>
+        /// <param name="examplesPrompt">格式化的问答示例</param>
+        /// <param name="userProfile">用户画像（可选）</param>
+        /// <returns>优化后的Prompt</returns>
+        public async Task<string> CreateProgressivePromptWithExamplesAsync(
+            string userMessage, 
+            string schemaInfo, 
+            string dbType, 
+            string examplesPrompt,
+            UserProfile userProfile = null)
+        {
             try
             {
-                // 1. 选择最佳示例
+                // 1. 选择最佳示例（使用内置示例池）
                 var selectedExamples = await SelectBestExamplesAsync(userMessage, schemaInfo, k: 3);
 
                 // 2. 按复杂度排序
@@ -50,10 +69,11 @@ namespace Text2Sql.Net.Domain.Service
                 // 3. 生成推理链
                 var reasoningChain = await GenerateReasoningChainAsync(userMessage, schemaInfo);
 
-                // 4. 构建渐进式Prompt
-                var prompt = BuildProgressivePrompt(userMessage, schemaInfo, dbType, sortedExamples, reasoningChain, userProfile);
+                // 4. 构建渐进式Prompt（包含用户提供的问答示例）
+                var prompt = BuildProgressivePromptWithExamples(userMessage, schemaInfo, dbType, sortedExamples, reasoningChain, examplesPrompt, userProfile);
 
-                _logger.LogInformation($"生成了包含 {selectedExamples.Count} 个示例的渐进式Prompt");
+                _logger.LogInformation($"生成了包含 {selectedExamples.Count} 个内置示例的渐进式Prompt" + 
+                    (!string.IsNullOrEmpty(examplesPrompt) ? "，并包含了用户问答示例" : ""));
                 return prompt;
             }
             catch (Exception ex)
@@ -258,6 +278,157 @@ namespace Text2Sql.Net.Domain.Service
             prompt.AppendLine();
 
             // 8. 质量检查清单
+            prompt.AppendLine("## 质量检查清单");
+            prompt.AppendLine();
+            prompt.AppendLine("生成SQL前请确认：");
+            prompt.AppendLine("- [ ] 表名和列名拼写正确");
+            prompt.AppendLine("- [ ] JOIN条件准确无误");
+            prompt.AppendLine("- [ ] WHERE条件逻辑正确");
+            prompt.AppendLine("- [ ] 聚合函数使用恰当");
+            prompt.AppendLine("- [ ] 排序和分页符合需求");
+            prompt.AppendLine("- [ ] 语法符合目标数据库类型");
+            prompt.AppendLine();
+
+            prompt.AppendLine("现在请分析上述查询并生成对应的SQL语句：");
+
+            return prompt.ToString();
+        }
+
+        /// <summary>
+        /// 构建包含用户问答示例的渐进式Prompt
+        /// </summary>
+        private string BuildProgressivePromptWithExamples(
+            string userMessage, 
+            string schemaInfo, 
+            string dbType, 
+            List<QueryExample> examples, 
+            ChainOfThoughtSteps reasoning,
+            string examplesPrompt,
+            UserProfile userProfile)
+        {
+            var prompt = new StringBuilder();
+
+            // 1. 角色定义和任务说明
+            prompt.AppendLine("# 专业SQL查询生成专家");
+            prompt.AppendLine();
+            prompt.AppendLine("您是一位资深的SQL查询生成专家，具备深厚的数据库理论基础和丰富的实战经验。");
+            prompt.AppendLine("您的任务是将自然语言查询转换为高效、准确的SQL语句。");
+            prompt.AppendLine();
+
+            // 2. 数据库信息
+            prompt.AppendLine("## 数据库环境");
+            prompt.AppendLine($"- **数据库类型**: {dbType}");
+            prompt.AppendLine("- **表结构信息**:");
+            prompt.AppendLine("```json");
+            prompt.AppendLine(schemaInfo);
+            prompt.AppendLine("```");
+            prompt.AppendLine();
+
+            // 3. 用户提供的问答示例（优先级更高）
+            if (!string.IsNullOrEmpty(examplesPrompt))
+            {
+                prompt.AppendLine("## 相关问答示例");
+                prompt.AppendLine();
+                prompt.AppendLine("以下是与您的查询相关的高质量示例，请重点参考这些示例的模式和风格：");
+                prompt.AppendLine();
+                prompt.AppendLine(examplesPrompt);
+                prompt.AppendLine();
+            }
+
+            // 4. 内置渐进式示例（从简单到复杂）
+            if (examples.Count > 0)
+            {
+                prompt.AppendLine("## 通用查询示例（按复杂度递增）");
+                prompt.AppendLine();
+
+                for (int i = 0; i < examples.Count; i++)
+                {
+                    var example = examples[i];
+                    prompt.AppendLine($"### 示例 {i + 1} - 复杂度: {example.ComplexityScore:F1}");
+                    prompt.AppendLine($"**问题**: {example.Question}");
+                    prompt.AppendLine();
+                    prompt.AppendLine("**分析过程**:");
+                    foreach (var step in example.ReasoningSteps)
+                    {
+                        prompt.AppendLine($"- {step}");
+                    }
+                    prompt.AppendLine();
+                    prompt.AppendLine("**SQL查询**:");
+                    prompt.AppendLine("```sql");
+                    prompt.AppendLine(example.Sql);
+                    prompt.AppendLine("```");
+                    prompt.AppendLine();
+                }
+            }
+
+            // 5. 推理指导原则
+            prompt.AppendLine("## 分析指导原则");
+            prompt.AppendLine();
+            prompt.AppendLine("请按照以下步骤进行分析：");
+            prompt.AppendLine("1. **理解需求**: 仔细分析用户的查询意图");
+            prompt.AppendLine("2. **识别实体**: 找出涉及的业务对象和属性");
+            prompt.AppendLine("3. **分析关系**: 确定表之间的关联关系");
+            prompt.AppendLine("4. **构建查询**: 设计高效的SQL查询结构");
+            prompt.AppendLine("5. **优化性能**: 考虑索引和查询性能");
+            prompt.AppendLine();
+
+            // 6. 个性化指导
+            if (userProfile != null)
+            {
+                prompt.AppendLine("## 个性化指导");
+                
+                if (userProfile.ExpertiseLevel < 0.3)
+                {
+                    prompt.AppendLine("- 请生成简单易懂的SQL，并添加详细注释");
+                    prompt.AppendLine("- 优先使用基础语法，避免复杂的子查询");
+                }
+                else if (userProfile.ExpertiseLevel > 0.7)
+                {
+                    prompt.AppendLine("- 请生成高效优化的SQL查询");
+                    prompt.AppendLine("- 可以使用高级特性如CTE、窗口函数等");
+                }
+
+                if (userProfile.PreferVerboseExplanation)
+                {
+                    prompt.AppendLine("- 请详细解释查询逻辑和每个部分的作用");
+                }
+
+                if (userProfile.CommonPatterns.Any())
+                {
+                    prompt.AppendLine($"- 参考用户常用模式: {string.Join(", ", userProfile.CommonPatterns)}");
+                }
+
+                prompt.AppendLine();
+            }
+
+            // 7. 当前查询分析
+            prompt.AppendLine("## 当前查询分析");
+            prompt.AppendLine();
+            prompt.AppendLine($"**用户问题**: {userMessage}");
+            prompt.AppendLine();
+            prompt.AppendLine("**预分析结果**:");
+            prompt.AppendLine($"- 查询意图: {reasoning.Intent}");
+            prompt.AppendLine($"- 关键实体: {string.Join(", ", reasoning.KeyEntities)}");
+            prompt.AppendLine($"- 相关表: {string.Join(", ", reasoning.RelevantTables)}");
+            prompt.AppendLine($"- 表关系: {reasoning.TableRelationships}");
+            prompt.AppendLine($"- SQL结构: {reasoning.SqlStructure}");
+            prompt.AppendLine();
+
+            // 8. 输出要求
+            prompt.AppendLine("## 输出要求");
+            prompt.AppendLine();
+            prompt.AppendLine("请按照以下格式输出：");
+            prompt.AppendLine();
+            prompt.AppendLine("1. **分析过程** (可选，根据用户偏好):");
+            prompt.AppendLine("   - 简要说明您的分析思路");
+            prompt.AppendLine();
+            prompt.AppendLine("2. **SQL查询**:");
+            prompt.AppendLine("   - 生成完整、可执行的SQL语句");
+            prompt.AppendLine("   - 确保语法正确，符合指定数据库类型");
+            prompt.AppendLine("   - 不要包含任何格式标记（如```sql```）");
+            prompt.AppendLine();
+
+            // 9. 质量检查清单
             prompt.AppendLine("## 质量检查清单");
             prompt.AppendLine();
             prompt.AppendLine("生成SQL前请确认：");

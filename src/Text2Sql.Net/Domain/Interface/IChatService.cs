@@ -48,5 +48,16 @@ namespace Text2Sql.Net.Domain.Interface
         /// <param name="connectionId">数据库连接ID</param>
         /// <returns>清空结果</returns>
         Task<bool> ClearChatHistoryAsync(string connectionId);
+
+        /// <summary>
+        /// 从修正创建问答示例
+        /// </summary>
+        /// <param name="connectionId">数据库连接ID</param>
+        /// <param name="userQuestion">用户问题</param>
+        /// <param name="correctSql">正确的SQL</param>
+        /// <param name="incorrectSql">错误的SQL</param>
+        /// <param name="description">描述</param>
+        /// <returns>是否成功</returns>
+        Task<bool> CreateExampleFromCorrectionAsync(string connectionId, string userQuestion, string correctSql, string incorrectSql = null, string description = null);
     }
 } 

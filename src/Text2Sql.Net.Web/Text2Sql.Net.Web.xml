@@ -256,5 +256,23 @@
             清空聊天记录
             </summary>
         </member>
+        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.ShowCorrectionModal(Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage)">
+            <summary>
+            显示修正示例弹窗
+            </summary>
+            <param name="message">聊天消息</param>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.SaveCorrectionExample">
+            <summary>
+            保存修正示例
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.FindUserMessageForResponse(Text2Sql.Net.Repositories.Text2Sql.ChatHistory.ChatMessage)">
+            <summary>
+            查找与响应消息对应的用户消息
+            </summary>
+            <param name="responseMessage">AI响应消息</param>
+            <returns>对应的用户消息</returns>
+        </member>
     </members>
 </doc>

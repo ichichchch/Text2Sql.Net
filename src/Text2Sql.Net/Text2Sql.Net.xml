@@ -39,6 +39,17 @@
             <param name="userProfile">用户画像（可选）</param>
             <returns>优化后的Prompt</returns>
         </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IAdvancedPromptService.CreateProgressivePromptWithExamplesAsync(System.String,System.String,System.String,System.String,Text2Sql.Net.Domain.Service.UserProfile)">
+            <summary>
+            创建包含问答示例的渐进式复杂度Prompt
+            </summary>
+            <param name="userMessage">用户查询</param>
+            <param name="schemaInfo">Schema信息</param>
+            <param name="dbType">数据库类型</param>
+            <param name="examplesPrompt">格式化的问答示例</param>
+            <param name="userProfile">用户画像（可选）</param>
+            <returns>优化后的Prompt</returns>
+        </member>
         <member name="T:Text2Sql.Net.Domain.Interface.IChatService">
             <summary>
             聊天服务接口
@@ -82,6 +93,17 @@
             </summary>
             <param name="connectionId">数据库连接ID</param>
             <returns>清空结果</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IChatService.CreateExampleFromCorrectionAsync(System.String,System.String,System.String,System.String,System.String)">
+            <summary>
+            从修正创建问答示例
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userQuestion">用户问题</param>
+            <param name="correctSql">正确的SQL</param>
+            <param name="incorrectSql">错误的SQL</param>
+            <param name="description">描述</param>
+            <returns>是否成功</returns>
         </member>
         <member name="T:Text2Sql.Net.Domain.Interface.IConversationStateManager">
             <summary>
@@ -276,6 +298,90 @@
             <param name="parameters">参数</param>
             <returns>缓存键</returns>
         </member>
+        <member name="T:Text2Sql.Net.Domain.Interface.IQAExampleService">
+            <summary>
+            问答示例服务接口
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IQAExampleService.GetRelevantExamplesAsync(System.String,System.String,System.Int32,System.Double)">
+            <summary>
+            获取相关的问答示例（基于语义搜索）
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userQuestion">用户问题</param>
+            <param name="limit">返回数量限制</param>
+            <param name="minRelevanceScore">最小相关性分数</param>
+            <returns>相关的示例列表</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IQAExampleService.AddExampleAsync(Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample)">
+            <summary>
+            添加问答示例并生成向量嵌入
+            </summary>
+            <param name="example">问答示例</param>
+            <returns>是否成功</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IQAExampleService.CreateFromCorrectionAsync(System.String,System.String,System.String,System.String,System.String)">
+            <summary>
+            从修正中创建问答示例
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userQuestion">用户问题</param>
+            <param name="correctSql">正确的SQL</param>
+            <param name="incorrectSql">错误的SQL（可选）</param>
+            <param name="description">示例描述</param>
+            <returns>是否成功</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IQAExampleService.UpdateExampleAsync(Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample)">
+            <summary>
+            更新问答示例
+            </summary>
+            <param name="example">问答示例</param>
+            <returns>是否成功</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IQAExampleService.DeleteExampleAsync(System.String)">
+            <summary>
+            删除问答示例
+            </summary>
+            <param name="exampleId">示例ID</param>
+            <returns>是否成功</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IQAExampleService.GetExamplesByConnectionIdAsync(System.String)">
+            <summary>
+            获取指定连接的所有示例
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <returns>示例列表</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IQAExampleService.SearchExamplesAsync(System.String,System.String)">
+            <summary>
+            搜索示例
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="keyword">搜索关键词</param>
+            <returns>示例列表</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IQAExampleService.BatchUpdateEnabledAsync(System.Collections.Generic.List{System.String},System.Boolean)">
+            <summary>
+            批量启用/禁用示例
+            </summary>
+            <param name="exampleIds">示例ID列表</param>
+            <param name="isEnabled">是否启用</param>
+            <returns>是否成功</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IQAExampleService.RegenerateEmbeddingsAsync(System.String)">
+            <summary>
+            为所有现有示例重新生成向量嵌入
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <returns>是否成功</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.IQAExampleService.FormatExamplesForPrompt(System.Collections.Generic.List{Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample})">
+            <summary>
+            格式化示例为Few-shot提示词格式
+            </summary>
+            <param name="examples">示例列表</param>
+            <returns>格式化的提示词字符串</returns>
+        </member>
         <member name="T:Text2Sql.Net.Domain.Interface.ISchemaTrainingService">
             <summary>
             数据库Schema训练服务接口
@@ -384,6 +490,17 @@
             <param name="userProfile">用户画像（可选）</param>
             <returns>优化后的Prompt</returns>
         </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.CreateProgressivePromptWithExamplesAsync(System.String,System.String,System.String,System.String,Text2Sql.Net.Domain.Service.UserProfile)">
+            <summary>
+            创建包含问答示例的渐进式复杂度Prompt
+            </summary>
+            <param name="userMessage">用户查询</param>
+            <param name="schemaInfo">Schema信息</param>
+            <param name="dbType">数据库类型</param>
+            <param name="examplesPrompt">格式化的问答示例</param>
+            <param name="userProfile">用户画像（可选）</param>
+            <returns>优化后的Prompt</returns>
+        </member>
         <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.SelectBestExamplesAsync(System.String,System.String,System.Int32)">
             <summary>
             基于相似度选择最佳示例
@@ -404,6 +521,11 @@
         <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.BuildProgressivePrompt(System.String,System.String,System.String,System.Collections.Generic.List{Text2Sql.Net.Domain.Service.QueryExample},Text2Sql.Net.Domain.Service.ChainOfThoughtSteps,Text2Sql.Net.Domain.Service.UserProfile)">
             <summary>
             构建渐进式复杂度Prompt
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.BuildProgressivePromptWithExamples(System.String,System.String,System.String,System.Collections.Generic.List{Text2Sql.Net.Domain.Service.QueryExample},Text2Sql.Net.Domain.Service.ChainOfThoughtSteps,System.String,Text2Sql.Net.Domain.Service.UserProfile)">
+            <summary>
+            构建包含用户问答示例的渐进式Prompt
             </summary>
         </member>
         <member name="M:Text2Sql.Net.Domain.Service.AdvancedPromptService.CreateBasicPrompt(System.String,System.String,System.String)">
@@ -476,7 +598,7 @@
             聊天服务实现
             </summary>
         </member>
-        <member name="M:Text2Sql.Net.Domain.Service.ChatService.#ctor(Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.IDatabaseConnectionConfigRepository,Text2Sql.Net.Repositories.Text2Sql.ChatHistory.IChatMessageRepository,Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.IDatabaseSchemaRepository,Text2Sql.Net.Domain.Interface.ISqlExecutionService,Text2Sql.Net.Domain.Interface.ISemanticService,Text2Sql.Net.Domain.Interface.IIntelligentSchemaLinkingService,Text2Sql.Net.Domain.Interface.IAdvancedPromptService,Text2Sql.Net.Domain.Interface.IExecutionFeedbackOptimizer,Text2Sql.Net.Domain.Interface.IConversationStateManager,Microsoft.SemanticKernel.Kernel,Microsoft.Extensions.Logging.ILogger{Text2Sql.Net.Domain.Service.ChatService})">
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.#ctor(Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.IDatabaseConnectionConfigRepository,Text2Sql.Net.Repositories.Text2Sql.ChatHistory.IChatMessageRepository,Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.IDatabaseSchemaRepository,Text2Sql.Net.Domain.Interface.ISqlExecutionService,Text2Sql.Net.Domain.Interface.ISemanticService,Text2Sql.Net.Domain.Interface.IIntelligentSchemaLinkingService,Text2Sql.Net.Domain.Interface.IAdvancedPromptService,Text2Sql.Net.Domain.Interface.IExecutionFeedbackOptimizer,Text2Sql.Net.Domain.Interface.IConversationStateManager,Text2Sql.Net.Domain.Interface.IQAExampleService,Microsoft.SemanticKernel.Kernel,Microsoft.Extensions.Logging.ILogger{Text2Sql.Net.Domain.Service.ChatService})">
             <summary>
             构造函数
             </summary>
@@ -541,6 +663,17 @@
             </summary>
             <param name="sql">原始SQL字符串</param>
             <returns>清理后的SQL字符串</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.ChatService.CreateExampleFromCorrectionAsync(System.String,System.String,System.String,System.String,System.String)">
+            <summary>
+            从修正创建问答示例
+            </summary>
+            <param name="connectionId">数据库连接ID</param>
+            <param name="userQuestion">用户问题</param>
+            <param name="correctSql">正确的SQL</param>
+            <param name="incorrectSql">错误的SQL</param>
+            <param name="description">描述</param>
+            <returns>是否成功</returns>
         </member>
         <member name="M:Text2Sql.Net.Domain.Service.ChatService.ClearChatHistoryAsync(System.String)">
             <inheritdoc/>
@@ -1295,6 +1428,90 @@
             查询性能指标
             </summary>
         </member>
+        <member name="T:Text2Sql.Net.Domain.Service.QAExampleService">
+            <summary>
+            问答示例服务实现
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.QAExampleService.#ctor(Text2Sql.Net.Repositories.Text2Sql.QAExample.IQAExampleRepository,Text2Sql.Net.Domain.Interface.ISemanticService,Microsoft.Extensions.Logging.ILogger{Text2Sql.Net.Domain.Service.QAExampleService})">
+            <summary>
+            构造函数
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.QAExampleService.GetRelevantExamplesAsync(System.String,System.String,System.Int32,System.Double)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.QAExampleService.AddExampleAsync(Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.QAExampleService.CreateFromCorrectionAsync(System.String,System.String,System.String,System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.QAExampleService.UpdateExampleAsync(Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.QAExampleService.DeleteExampleAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.QAExampleService.GetExamplesByConnectionIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.QAExampleService.SearchExamplesAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.QAExampleService.BatchUpdateEnabledAsync(System.Collections.Generic.List{System.String},System.Boolean)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.QAExampleService.RegenerateEmbeddingsAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.QAExampleService.FormatExamplesForPrompt(System.Collections.Generic.List{Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample})">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.QAExampleService.GenerateEmbeddingForExampleAsync(Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample)">
+            <summary>
+            为问答示例生成向量嵌入
+            </summary>
+            <param name="example">问答示例</param>
+            <returns>是否成功</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.QAExampleService.DeleteEmbeddingForExampleAsync(Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample)">
+            <summary>
+            删除问答示例的向量嵌入
+            </summary>
+            <param name="example">问答示例</param>
+            <returns>是否成功</returns>
+        </member>
+        <member name="T:Text2Sql.Net.Domain.Service.QAExampleEmbedding">
+            <summary>
+            问答示例向量嵌入数据结构
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Domain.Service.QAExampleEmbedding.ExampleId">
+            <summary>
+            示例ID
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Domain.Service.QAExampleEmbedding.Question">
+            <summary>
+            用户问题
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Domain.Service.QAExampleEmbedding.SqlQuery">
+            <summary>
+            SQL查询
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Domain.Service.QAExampleEmbedding.Category">
+            <summary>
+            分类
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Domain.Service.QAExampleEmbedding.EmbeddingText">
+            <summary>
+            用于嵌入的文本
+            </summary>
+        </member>
         <member name="T:Text2Sql.Net.Domain.Service.SchemaTrainingService">
             <summary>
             Schema训练服务实现
@@ -1998,6 +2215,179 @@
             </summary>
             <param name="connectionId">连接ID</param>
             <returns>Schema对象</returns>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.QAExample.IQAExampleRepository">
+            <summary>
+            问答示例仓储接口
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.QAExample.IQAExampleRepository.GetEnabledByConnectionIdAsync(System.String)">
+            <summary>
+            根据连接ID获取所有启用的示例
+            </summary>
+            <param name="connectionId">连接ID</param>
+            <returns>示例列表</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.QAExample.IQAExampleRepository.GetByConnectionIdAsync(System.String)">
+            <summary>
+            根据连接ID获取所有示例
+            </summary>
+            <param name="connectionId">连接ID</param>
+            <returns>示例列表</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.QAExample.IQAExampleRepository.GetByCategoryAsync(System.String,System.String)">
+            <summary>
+            根据分类获取示例
+            </summary>
+            <param name="connectionId">连接ID</param>
+            <param name="category">分类</param>
+            <returns>示例列表</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.QAExample.IQAExampleRepository.SearchAsync(System.String,System.String)">
+            <summary>
+            搜索示例（根据问题或SQL内容）
+            </summary>
+            <param name="connectionId">连接ID</param>
+            <param name="keyword">关键词</param>
+            <returns>示例列表</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.QAExample.IQAExampleRepository.UpdateUsageStatisticsAsync(System.String)">
+            <summary>
+            更新示例使用统计
+            </summary>
+            <param name="exampleId">示例ID</param>
+            <returns>是否成功</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.QAExample.IQAExampleRepository.DeleteByConnectionIdAsync(System.String)">
+            <summary>
+            删除指定连接的所有示例
+            </summary>
+            <param name="connectionId">连接ID</param>
+            <returns>是否成功</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.QAExample.IQAExampleRepository.BatchUpdateEnabledAsync(System.Collections.Generic.List{System.String},System.Boolean)">
+            <summary>
+            批量启用/禁用示例
+            </summary>
+            <param name="exampleIds">示例ID列表</param>
+            <param name="isEnabled">是否启用</param>
+            <returns>是否成功</returns>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample">
+            <summary>
+            问答示例
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample.Id">
+            <summary>
+            示例ID
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample.ConnectionId">
+            <summary>
+            数据库连接ID
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample.Question">
+            <summary>
+            用户问题
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample.SqlQuery">
+            <summary>
+            对应的SQL查询
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample.Description">
+            <summary>
+            示例说明/描述
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample.Category">
+            <summary>
+            示例分类/标签
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample.IsEnabled">
+            <summary>
+            是否启用
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample.Source">
+            <summary>
+            示例来源：manual(手动创建)、correction(修正生成)
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample.OriginalIncorrectSql">
+            <summary>
+            如果是修正生成的，记录原始的错误SQL
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample.UsageCount">
+            <summary>
+            使用次数（被匹配到的次数）
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample.LastUsedTime">
+            <summary>
+            最后使用时间
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample.CreateTime">
+            <summary>
+            创建时间
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample.UpdateTime">
+            <summary>
+            更新时间
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExample.CreatedBy">
+            <summary>
+            创建者
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.QAExample.ExampleSource">
+            <summary>
+            示例来源类型
+            </summary>
+        </member>
+        <member name="F:Text2Sql.Net.Repositories.Text2Sql.QAExample.ExampleSource.Manual">
+            <summary>
+            手动创建
+            </summary>
+        </member>
+        <member name="F:Text2Sql.Net.Repositories.Text2Sql.QAExample.ExampleSource.Correction">
+            <summary>
+            修正生成
+            </summary>
+        </member>
+        <member name="T:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExampleRepository">
+            <summary>
+            问答示例仓储实现
+            </summary>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExampleRepository.GetEnabledByConnectionIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExampleRepository.GetByConnectionIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExampleRepository.GetByCategoryAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExampleRepository.SearchAsync(System.String,System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExampleRepository.UpdateUsageStatisticsAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExampleRepository.DeleteByConnectionIdAsync(System.String)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Repositories.Text2Sql.QAExample.QAExampleRepository.BatchUpdateEnabledAsync(System.Collections.Generic.List{System.String},System.Boolean)">
+            <inheritdoc/>
         </member>
         <member name="T:Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.ISchemaEmbeddingRepository">
             <summary>

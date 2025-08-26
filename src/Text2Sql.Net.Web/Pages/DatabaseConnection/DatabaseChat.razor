@@ -66,6 +66,9 @@
                                                 <Button Type="@ButtonType.Link" OnClick="async () => await ExecuteSqlAsync(message.SqlQuery)">
                                                     <Icon Type="play-circle" /> 执行
                                                 </Button>
+                                                <Button Type="@ButtonType.Link" OnClick="() => ShowCorrectionModal(message)">
+                                                    <Icon Type="edit" /> 修正
+                                                </Button>
                                                 @if (message.QueryResult != null && message.QueryResult.Count > 0)
                                                 {
                                                     <Button Type="@ButtonType.Link" OnClick="async () => await ShowChartForMessage(message)">
@@ -267,6 +270,35 @@
        CancelText="@("取消")">
     <p>确定要清空当前数据库连接的所有聊天记录吗？</p>
     <p style="color: #ff4d4f; font-size: 12px;">此操作不可撤销</p>
+</Modal>
+
+<!-- 修正示例弹窗 -->
+<Modal Title="修正SQL示例"
+       @bind-Visible="_showCorrectionModal"
+       Width="800"
+       OnOk="SaveCorrectionExample"
+       OnCancel="() => _showCorrectionModal = false">
+    @if (_correctionData != null)
+    {
+        <div style="margin-bottom: 16px;">
+            <Alert Type="@AlertType.Info" Message="将创建一个问答示例供未来参考" ShowIcon="true" />
+        </div>
+        
+        <Form Model="_correctionData" LabelColSpan="4" WrapperColSpan="20">
+            <FormItem Label="用户问题">
+                <TextArea @bind-Value="_correctionData.UserQuestion" Rows="2" Disabled />
+            </FormItem>
+            <FormItem Label="原始SQL">
+                <TextArea @bind-Value="_correctionData.OriginalSql" Rows="4" Disabled />
+            </FormItem>
+            <FormItem Label="正确SQL" Required>
+                <TextArea @bind-Value="_correctionData.CorrectSql" Rows="6" Placeholder="请输入正确的SQL查询..." />
+            </FormItem>
+            <FormItem Label="示例说明">
+                <TextArea @bind-Value="_correctionData.Description" Rows="3" Placeholder="请简要说明修正的原因或注意事项..." />
+            </FormItem>
+        </Form>
+    }
 </Modal>
 
 <style>
@@ -675,6 +707,8 @@
     private bool _isChartModalVisible = false;
     private bool _isClearConfirmVisible = false;
     private bool _clearingHistory = false;
+    private bool _showCorrectionModal = false;
+    private CorrectionData? _correctionData;
 
     // 图表控制相关变量
     private List<ChartTypeOption> _chartTypes = new List<ChartTypeOption>();
@@ -696,6 +730,14 @@
         public string Key { get; set; } = string.Empty;
         public string Label { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
+    }
+
+    public class CorrectionData
+    {
+        public string UserQuestion { get; set; } = string.Empty;
+        public string OriginalSql { get; set; } = string.Empty;
+        public string CorrectSql { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
     }
 
     protected override async Task OnInitializedAsync()
@@ -1329,5 +1371,89 @@
             _clearingHistory = false;
             _isClearConfirmVisible = false;
         }
+    }
+
+    /// <summary>
+    /// 显示修正示例弹窗
+    /// </summary>
+    /// <param name="message">聊天消息</param>
+    private void ShowCorrectionModal(ChatMessage message)
+    {
+        // 找到用户的原始问题
+        var userMessage = FindUserMessageForResponse(message);
+        
+        _correctionData = new CorrectionData
+        {
+            UserQuestion = userMessage?.Message ?? "",
+            OriginalSql = message.SqlQuery ?? "",
+            CorrectSql = message.SqlQuery ?? "", // 初始化为原始SQL，用户可以修改
+            Description = ""
+        };
+        
+        _showCorrectionModal = true;
+    }
+
+    /// <summary>
+    /// 保存修正示例
+    /// </summary>
+    private async Task SaveCorrectionExample()
+    {
+        if (_correctionData == null || string.IsNullOrWhiteSpace(_correctionData.CorrectSql))
+        {
+            await MessageService.Warning("请输入正确的SQL查询");
+            return;
+        }
+
+        try
+        {
+            var success = await ChatService.CreateExampleFromCorrectionAsync(
+                _selectedConnectionId,
+                _correctionData.UserQuestion,
+                _correctionData.CorrectSql,
+                _correctionData.OriginalSql,
+                _correctionData.Description);
+
+            if (success)
+            {
+                await MessageService.Success("修正示例已保存，将用于改进未来的查询结果");
+                _showCorrectionModal = false;
+                _correctionData = null;
+            }
+            else
+            {
+                await MessageService.Error("保存修正示例失败");
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"保存修正示例失败：{ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 查找与响应消息对应的用户消息
+    /// </summary>
+    /// <param name="responseMessage">AI响应消息</param>
+    /// <returns>对应的用户消息</returns>
+    private ChatMessage? FindUserMessageForResponse(ChatMessage responseMessage)
+    {
+        if (_chatHistory == null || !_chatHistory.Any())
+            return null;
+
+        // 找到响应消息在列表中的位置
+        var responseIndex = _chatHistory.IndexOf(responseMessage);
+        if (responseIndex <= 0)
+            return null;
+
+        // 向前查找最近的用户消息
+        for (int i = responseIndex - 1; i >= 0; i--)
+        {
+            if (_chatHistory[i].IsUser)
+            {
+                return _chatHistory[i];
+            }
+        }
+
+        return null;
     }
 }
