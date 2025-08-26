@@ -72,16 +72,18 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.MapBlazorHub();
-app.MapFallbackToPage("/_Host");
 
 app.UseAuthorization();
 
 app.MapControllers();
 
-// 添加MCP端点映射
+// 添加MCP端点映射到指定路径，避免与根路径冲突
 app.UseEndpoints(endpoints =>
 {
-    endpoints.MapMcp();
+    endpoints.MapMcp("/mcp");
 });
+
+// 设置Blazor回退路由，确保根路径正确响应
+app.MapFallbackToPage("/_Host");
 
 app.Run();
