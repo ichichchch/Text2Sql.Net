@@ -139,19 +139,27 @@
             <param name="cancellationToken">取消令牌</param>
             <returns>聊天历史</returns>
         </member>
+        <member name="M:Text2Sql.Net.Web.Tools.Text2SqlMcpTool.GetTableStructure(ModelContextProtocol.Server.IMcpServer,System.String,System.Threading.CancellationToken)">
+            <summary>
+            获取指定表的结构信息
+            </summary>
+            <param name="thisServer">MCP服务器实例</param>
+            <param name="tableName">表名</param>
+            <param name="cancellationToken">取消令牌</param>
+            <returns>表结构信息</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Tools.Text2SqlMcpTool.GetAllTables(ModelContextProtocol.Server.IMcpServer,System.Boolean,System.Threading.CancellationToken)">
+            <summary>
+            获取所有表的基本信息
+            </summary>
+            <param name="thisServer">MCP服务器实例</param>
+            <param name="includeDetails">是否包含详细信息</param>
+            <param name="cancellationToken">取消令牌</param>
+            <returns>所有表的信息</returns>
+        </member>
         <member name="M:Text2Sql.Net.Web.Tools.Text2SqlMcpTool.FormatBytes(System.Int64)">
             <summary>
             格式化字节数为可读字符串
-            </summary>
-        </member>
-        <member name="T:Text2Sql.Net.Web.Tools.Text2SqlMcpTool.TableInfo">
-            <summary>
-            表信息
-            </summary>
-        </member>
-        <member name="T:Text2Sql.Net.Web.Tools.Text2SqlMcpTool.ColumnInfo">
-            <summary>
-            列信息
             </summary>
         </member>
         <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.LoadDatabaseConnections">
