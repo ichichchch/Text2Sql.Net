@@ -207,20 +207,13 @@ namespace Text2Sql.Net.Domain.Service
                     await _embeddingRepository.DeleteByTableNameAsync(connectionId, tableName);
                 }
 
-                // 获取选定表的完整Schema信息
-                string allSchemaJson = await GetDatabaseSchemaAsync(connectionId);
-                if (string.IsNullOrEmpty(allSchemaJson))
+                // 仅获取选定表的详细Schema信息（避免扫描全部表）
+                var selectedTablesWithDetails = await GetTablesDetailsAsync(connectionId, tableNames);
+                if (selectedTablesWithDetails == null || selectedTablesWithDetails.Count == 0)
                 {
+                    _logger.LogWarning($"未能获取到选定表的详细Schema信息：{string.Join(", ", tableNames)}");
                     return false;
                 }
-
-                var allTablesWithDetails = JsonConvert.DeserializeObject<List<TableInfo>>(allSchemaJson);
-                if (allTablesWithDetails == null)
-                {
-                    return false;
-                }
-
-                var selectedTablesWithDetails = allTablesWithDetails.Where(t => tableNames.Contains(t.TableName, StringComparer.OrdinalIgnoreCase)).ToList();
 
                 // 为选定的表创建向量嵌入
                 foreach (var table in selectedTablesWithDetails)
@@ -275,6 +268,37 @@ namespace Text2Sql.Net.Domain.Service
                     }
                 }
 
+                // 同步更新/写入 Schema 表，确保“已训练表”页面有数据来源
+                try
+                {
+                    var existingSchema = await _schemaRepository.GetByConnectionIdAsync(connectionId);
+                    if (existingSchema != null && !string.IsNullOrWhiteSpace(existingSchema.SchemaContent))
+                    {
+                        var currentTables = JsonConvert.DeserializeObject<List<TableInfo>>(existingSchema.SchemaContent) ?? new List<TableInfo>();
+                        // 移除同名表（忽略大小写），用本次训练的详细 Schema 覆盖
+                        var comparer = StringComparer.OrdinalIgnoreCase;
+                        currentTables = currentTables.Where(t => !tableNames.Contains(t.TableName, comparer)).ToList();
+                        currentTables.AddRange(selectedTablesWithDetails);
+
+                        existingSchema.SchemaContent = JsonConvert.SerializeObject(currentTables, Formatting.Indented);
+                        existingSchema.UpdateTime = DateTime.Now;
+                        await _schemaRepository.UpdateAsync(existingSchema);
+                    }
+                    else
+                    {
+                        var newSchema = new DatabaseSchema
+                        {
+                            ConnectionId = connectionId,
+                            SchemaContent = JsonConvert.SerializeObject(selectedTablesWithDetails, Formatting.Indented)
+                        };
+                        await _schemaRepository.InsertAsync(newSchema);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "更新部分训练后的 SchemaContent 失败，不影响嵌入写入，但会影响已训练表展示。");
+                }
+
                 return true;
             }
             catch (Exception ex)
@@ -289,26 +313,93 @@ namespace Text2Sql.Net.Domain.Service
         {
             try
             {
-                // 获取完整的数据库Schema
-                string schemaJson = await GetDatabaseSchemaAsync(connectionId);
-                if (string.IsNullOrEmpty(schemaJson))
+                // 仅获取表名（和可用的简单描述），避免加载完整 Schema
+                var connectionConfig = await _connectionRepository.GetByIdAsync(connectionId);
+                if (connectionConfig == null)
                 {
+                    _logger.LogError($"找不到数据库连接配置：{connectionId}");
                     return new List<TableInfo>();
                 }
 
-                // 反序列化Schema信息
-                var tables = JsonConvert.DeserializeObject<List<TableInfo>>(schemaJson);
-                if (tables == null)
+                // Excel 视为 Sqlite
+                var typeForSchema = string.Equals(connectionConfig.DbType, "Excel", StringComparison.OrdinalIgnoreCase)
+                    ? "sqlite"
+                    : connectionConfig.DbType;
+                var dbType = GetDbType(typeForSchema);
+
+                var db = new SqlSugarClient(new ConnectionConfig
                 {
-                    return new List<TableInfo>();
+                    ConfigId = connectionId,
+                    ConnectionString = connectionConfig.ConnectionString,
+                    DbType = dbType
+                });
+
+                var result = new List<TableInfo>();
+
+                if (dbType == DbType.Sqlite)
+                {
+                    // SQLite: 直接从 sqlite_master 读取表名
+                    var dt = db.Ado.GetDataTable("SELECT name AS TABLE_NAME FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'");
+                    foreach (DataRow row in dt.Rows)
+                    {
+                        var tableName = Convert.ToString(row["TABLE_NAME"]) ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(tableName)) continue;
+                        result.Add(new TableInfo
+                        {
+                            TableName = tableName,
+                            Description = $"表: {tableName}"
+                        });
+                    }
+                }
+                else if (dbType == DbType.MySql)
+                {
+                    // MySQL: 可一次性拿到表注释
+                    var dt = db.Ado.GetDataTable("SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'");
+                    foreach (DataRow row in dt.Rows)
+                    {
+                        var tableName = Convert.ToString(row["TABLE_NAME"]) ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(tableName)) continue;
+                        var comment = Convert.ToString(row["TABLE_COMMENT"]) ?? string.Empty;
+                        result.Add(new TableInfo
+                        {
+                            TableName = tableName,
+                            Description = string.IsNullOrEmpty(comment) ? $"表: {tableName}" : $"表: {tableName}, 备注: {comment}"
+                        });
+                    }
+                }
+                else if (dbType == DbType.PostgreSQL)
+                {
+                    // PostgreSQL: 仅获取表名；注释获取代价较高，列表阶段不取
+                    var dt = db.Ado.GetDataTable("SELECT table_schema AS TABLE_SCHEMA, table_name AS TABLE_NAME FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema')");
+                    foreach (DataRow row in dt.Rows)
+                    {
+                        var schema = Convert.ToString(row["TABLE_SCHEMA"]) ?? string.Empty;
+                        var tableName = Convert.ToString(row["TABLE_NAME"]) ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(tableName)) continue;
+                        result.Add(new TableInfo
+                        {
+                            TableName = tableName,
+                            Description = $"Schema: {schema}, 表: {tableName}"
+                        });
+                    }
+                }
+                else // 默认走 INFORMATION_SCHEMA（SQL Server 等）
+                {
+                    var dt = db.Ado.GetDataTable("SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'");
+                    foreach (DataRow row in dt.Rows)
+                    {
+                        var schema = Convert.ToString(row["TABLE_SCHEMA"]) ?? string.Empty;
+                        var tableName = Convert.ToString(row["TABLE_NAME"]) ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(tableName)) continue;
+                        result.Add(new TableInfo
+                        {
+                            TableName = tableName,
+                            Description = $"Schema: {schema}, 表: {tableName}"
+                        });
+                    }
                 }
 
-                // 只返回表的基本信息（表名和描述）
-                return tables.Select(t => new TableInfo
-                {
-                    TableName = t.TableName,
-                    Description = t.Description
-                }).ToList();
+                return result;
             }
             catch (Exception ex)
             {
@@ -1092,6 +1183,339 @@ namespace Text2Sql.Net.Domain.Service
                 "oracle" => DbType.Oracle,
                 _ => DbType.SqlServer
             };
+        }
+
+        /// <summary>
+        /// 仅为指定表获取详细 Schema（列与外键等），避免全库扫描
+        /// </summary>
+        private async Task<List<TableInfo>> GetTablesDetailsAsync(string connectionId, List<string> tableNames)
+        {
+            var results = new List<TableInfo>();
+            if (tableNames == null || tableNames.Count == 0) return results;
+
+            var connectionConfig = await _connectionRepository.GetByIdAsync(connectionId);
+            if (connectionConfig == null)
+            {
+                _logger.LogError($"找不到数据库连接配置：{connectionId}");
+                return results;
+            }
+
+            var typeForSchema = string.Equals(connectionConfig.DbType, "Excel", StringComparison.OrdinalIgnoreCase)
+                ? "sqlite"
+                : connectionConfig.DbType;
+            var dbType = GetDbType(typeForSchema);
+
+            var db = new SqlSugarClient(new ConnectionConfig
+            {
+                ConfigId = connectionId,
+                ConnectionString = connectionConfig.ConnectionString,
+                DbType = dbType
+            });
+
+            foreach (var rawName in tableNames.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (string.IsNullOrWhiteSpace(rawName)) continue;
+                try
+                {
+                    string tableName = rawName;
+                    string schemaName = string.Empty;
+                    string tableComment = string.Empty;
+
+                    if (dbType == DbType.Sqlite)
+                    {
+                        // SQLite: PRAGMA 方式
+                        // 可选：从自定义注释表取注释
+                        try
+                        {
+                            var hasTableComments = db.Ado.GetInt("SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name='table_comments'") > 0;
+                            if (hasTableComments)
+                            {
+                                var dt = db.Ado.GetDataTable($"SELECT comment FROM table_comments WHERE table_name='{SqliteEscapeIdentifier(tableName)}' LIMIT 1");
+                                if (dt.Rows.Count > 0)
+                                {
+                                    tableComment = Convert.ToString(dt.Rows[0]["comment"]) ?? string.Empty;
+                                }
+                            }
+                        }
+                        catch { }
+
+                        var tableInfo = new TableInfo
+                        {
+                            TableName = tableName,
+                            Description = string.IsNullOrEmpty(tableComment) ? $"表: {tableName}" : $"表: {tableName}, 备注: {tableComment}"
+                        };
+
+                        var columnsTable = db.Ado.GetDataTable($"PRAGMA table_info('{SqliteEscapeIdentifier(tableName)}')");
+                        foreach (DataRow colRow in columnsTable.Rows)
+                        {
+                            var columnName = Convert.ToString(colRow["name"]) ?? string.Empty;
+                            var dataType = Convert.ToString(colRow["type"]) ?? string.Empty;
+                            bool isNullable = (Convert.ToString(colRow["notnull"]) ?? "0") == "0";
+                            bool isPrimaryKey = (Convert.ToString(colRow["pk"]) ?? "0") == "1";
+
+                            tableInfo.Columns.Add(new ColumnInfo
+                            {
+                                ColumnName = columnName,
+                                DataType = dataType,
+                                IsNullable = isNullable,
+                                IsPrimaryKey = isPrimaryKey,
+                                Description = $"列: {columnName}, 类型: {dataType}"
+                            });
+                        }
+
+                        // 外键
+                        try
+                        {
+                            var fkTable = db.Ado.GetDataTable($"PRAGMA foreign_key_list('{SqliteEscapeIdentifier(tableName)}')");
+                            foreach (DataRow fkRow in fkTable.Rows)
+                            {
+                                var col = Convert.ToString(fkRow["from"]) ?? string.Empty;
+                                var refTab = Convert.ToString(fkRow["table"]) ?? string.Empty;
+                                var refCol = Convert.ToString(fkRow["to"]) ?? string.Empty;
+                                tableInfo.ForeignKeys.Add(new ForeignKeyInfo
+                                {
+                                    ForeignKeyName = $"FK_{tableName}_{col}_{refTab}_{refCol}",
+                                    ColumnName = col,
+                                    ReferencedTableName = refTab,
+                                    ReferencedColumnName = refCol,
+                                    RelationshipDescription = $"从表 {tableName} 通过 {col} 关联到主表 {refTab} 的 {refCol}"
+                                });
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning($"SQLite 获取表{tableName}外键失败：{ex.Message}");
+                        }
+
+                        results.Add(tableInfo);
+                        continue;
+                    }
+
+                    // 获取 schema 名（适用于 SQL Server / MySQL / PostgreSQL）
+                    try
+                    {
+                        if (dbType == DbType.MySql)
+                        {
+                            var dt = db.Ado.GetDataTable($"SELECT TABLE_SCHEMA, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{tableName}'");
+                            if (dt.Rows.Count > 0)
+                            {
+                                schemaName = Convert.ToString(dt.Rows[0]["TABLE_SCHEMA"]) ?? string.Empty;
+                                tableComment = Convert.ToString(dt.Rows[0]["TABLE_COMMENT"]) ?? string.Empty;
+                            }
+                        }
+                        else if (dbType == DbType.PostgreSQL)
+                        {
+                            var dt = db.Ado.GetDataTable($"SELECT table_schema FROM information_schema.tables WHERE table_type='BASE TABLE' AND table_name='{tableName}' LIMIT 1");
+                            if (dt.Rows.Count > 0)
+                            {
+                                schemaName = Convert.ToString(dt.Rows[0]["table_schema"]) ?? string.Empty;
+                                var cdt = db.Ado.GetDataTable($"SELECT obj_description('{schemaName}.{tableName}'::regclass, 'pg_class') as comment");
+                                if (cdt.Rows.Count > 0)
+                                {
+                                    tableComment = Convert.ToString(cdt.Rows[0]["comment"]) ?? string.Empty;
+                                }
+                            }
+                        }
+                        else // SQL Server 默认
+                        {
+                            var dt = db.Ado.GetDataTable($"SELECT TABLE_SCHEMA FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{tableName}'");
+                            if (dt.Rows.Count > 0)
+                            {
+                                schemaName = Convert.ToString(dt.Rows[0]["TABLE_SCHEMA"]) ?? string.Empty;
+                                var cdt = db.Ado.GetDataTable($@"SELECT CAST(value AS NVARCHAR(MAX)) AS [Description] FROM sys.extended_properties WHERE major_id = OBJECT_ID('{tableName}') AND minor_id = 0 AND name = 'MS_Description'");
+                                if (cdt.Rows.Count > 0)
+                                {
+                                    tableComment = Convert.ToString(cdt.Rows[0]["Description"]) ?? string.Empty;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning($"获取表{tableName}备注/Schema失败：{ex.Message}");
+                    }
+
+                    var tableInfoGen = new TableInfo
+                    {
+                        TableName = tableName,
+                        Description = string.IsNullOrEmpty(tableComment)
+                            ? (string.IsNullOrEmpty(schemaName) ? $"表: {tableName}" : $"Schema: {schemaName}, 表: {tableName}")
+                            : (string.IsNullOrEmpty(schemaName) ? $"表: {tableName}, 备注: {tableComment}" : $"Schema: {schemaName}, 表: {tableName}, 备注: {tableComment}")
+                    };
+
+                    // 列
+                    DataTable cols;
+                    if (dbType == DbType.MySql)
+                    {
+                        cols = db.Ado.GetDataTable($"SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{tableName}'");
+                    }
+                    else if (dbType == DbType.PostgreSQL)
+                    {
+                        if (string.IsNullOrEmpty(schemaName))
+                        {
+                            var sdt = db.Ado.GetDataTable($"SELECT table_schema FROM information_schema.tables WHERE table_type='BASE TABLE' AND table_name='{tableName}' LIMIT 1");
+                            schemaName = sdt.Rows.Count > 0 ? Convert.ToString(sdt.Rows[0]["table_schema"]) ?? string.Empty : string.Empty;
+                        }
+                        cols = db.Ado.GetDataTable($"SELECT column_name AS COLUMN_NAME, data_type AS DATA_TYPE, is_nullable AS IS_NULLABLE FROM information_schema.columns WHERE table_schema = '{schemaName}' AND table_name = '{tableName}'");
+                    }
+                    else // SQL Server
+                    {
+                        cols = db.Ado.GetDataTable($"SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{tableName}'");
+                    }
+
+                    // 主键列
+                    var primaryKeys = new List<string>();
+                    try
+                    {
+                        if (dbType == DbType.MySql)
+                        {
+                            var pk = db.Ado.GetDataTable($"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{tableName}' AND CONSTRAINT_NAME='PRIMARY'");
+                            foreach (DataRow r in pk.Rows)
+                            {
+                                var cn = Convert.ToString(r["COLUMN_NAME"]) ?? string.Empty;
+                                if (!string.IsNullOrEmpty(cn)) primaryKeys.Add(cn);
+                            }
+                        }
+                        else if (dbType == DbType.PostgreSQL)
+                        {
+                            if (string.IsNullOrEmpty(schemaName))
+                            {
+                                var sdt = db.Ado.GetDataTable($"SELECT table_schema FROM information_schema.tables WHERE table_type='BASE TABLE' AND table_name='{tableName}' LIMIT 1");
+                                schemaName = sdt.Rows.Count > 0 ? Convert.ToString(sdt.Rows[0]["table_schema"]) ?? string.Empty : string.Empty;
+                            }
+                            var pk = db.Ado.GetDataTable($@"SELECT a.attname AS COLUMN_NAME FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey) JOIN pg_class c ON c.oid = i.indrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE i.indisprimary AND c.relname = '{tableName}' AND n.nspname = '{schemaName}'");
+                            foreach (DataRow r in pk.Rows)
+                            {
+                                var cn = Convert.ToString(r["COLUMN_NAME"]) ?? string.Empty;
+                                if (!string.IsNullOrEmpty(cn)) primaryKeys.Add(cn);
+                            }
+                        }
+                        else // SQL Server 默认
+                        {
+                            var pk = db.Ado.GetDataTable($"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = '{tableName}' AND CONSTRAINT_NAME LIKE 'PK_%'");
+                            foreach (DataRow r in pk.Rows)
+                            {
+                                var cn = Convert.ToString(r["COLUMN_NAME"]) ?? string.Empty;
+                                if (!string.IsNullOrEmpty(cn)) primaryKeys.Add(cn);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning($"获取表{tableName}主键失败：{ex.Message}");
+                    }
+
+                    foreach (DataRow colRow in cols.Rows)
+                    {
+                        var columnName = Convert.ToString(colRow["COLUMN_NAME"]) ?? string.Empty;
+                        var dataType = Convert.ToString(colRow["DATA_TYPE"]) ?? string.Empty;
+                        var isNullableStr = Convert.ToString(colRow["IS_NULLABLE"]) ?? string.Empty;
+                        bool isNullable = isNullableStr.Equals("YES", StringComparison.OrdinalIgnoreCase) || isNullableStr.Equals("1");
+
+                        tableInfoGen.Columns.Add(new ColumnInfo
+                        {
+                            ColumnName = columnName,
+                            DataType = dataType,
+                            IsNullable = isNullable,
+                            IsPrimaryKey = primaryKeys.Contains(columnName)
+                        });
+                    }
+
+                    // 外键
+                    try
+                    {
+                        if (dbType == DbType.MySql)
+                        {
+                            var fkTable = db.Ado.GetDataTable($@"SELECT CONSTRAINT_NAME AS FK_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{tableName}' AND REFERENCED_TABLE_NAME IS NOT NULL");
+                            foreach (DataRow fkRow in fkTable.Rows)
+                            {
+                                var fkName = Convert.ToString(fkRow["FK_NAME"]) ?? string.Empty;
+                                var col = Convert.ToString(fkRow["COLUMN_NAME"]) ?? string.Empty;
+                                var refCol = Convert.ToString(fkRow["REFERENCED_COLUMN_NAME"]) ?? string.Empty;
+                                var refTab = Convert.ToString(fkRow["REFERENCED_TABLE_NAME"]) ?? string.Empty;
+                                tableInfoGen.ForeignKeys.Add(new ForeignKeyInfo
+                                {
+                                    ForeignKeyName = fkName,
+                                    ColumnName = col,
+                                    ReferencedColumnName = refCol,
+                                    ReferencedTableName = refTab,
+                                    RelationshipDescription = $"从表 {tableName} 通过 {col} 关联到主表 {refTab} 的 {refCol}"
+                                });
+                            }
+                        }
+                        else if (dbType == DbType.PostgreSQL)
+                        {
+                            if (string.IsNullOrEmpty(schemaName))
+                            {
+                                var sdt = db.Ado.GetDataTable($"SELECT table_schema FROM information_schema.tables WHERE table_type='BASE TABLE' AND table_name='{tableName}' LIMIT 1");
+                                schemaName = sdt.Rows.Count > 0 ? Convert.ToString(sdt.Rows[0]["table_schema"]) ?? string.Empty : string.Empty;
+                            }
+                            var fkTable = db.Ado.GetDataTable($@"SELECT con.conname AS fk_name, att.attname AS column_name, ref_att.attname AS referenced_column_name, ref_cl.relname AS referenced_table_name FROM pg_constraint con JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = ANY(con.conkey) JOIN pg_attribute ref_att ON ref_att.attrelid = con.confrelid AND ref_att.attnum = ANY(con.confkey) JOIN pg_class cl ON cl.oid = con.conrelid JOIN pg_class ref_cl ON ref_cl.oid = con.confrelid JOIN pg_namespace n ON n.oid = cl.relnamespace WHERE con.contype = 'f' AND cl.relname = '{tableName}' AND n.nspname = '{schemaName}'");
+                            foreach (DataRow fkRow in fkTable.Rows)
+                            {
+                                var fkName = Convert.ToString(fkRow["fk_name"]) ?? string.Empty;
+                                var col = Convert.ToString(fkRow["column_name"]) ?? string.Empty;
+                                var refCol = Convert.ToString(fkRow["referenced_column_name"]) ?? string.Empty;
+                                var refTab = Convert.ToString(fkRow["referenced_table_name"]) ?? string.Empty;
+                                tableInfoGen.ForeignKeys.Add(new ForeignKeyInfo
+                                {
+                                    ForeignKeyName = fkName,
+                                    ColumnName = col,
+                                    ReferencedColumnName = refCol,
+                                    ReferencedTableName = refTab,
+                                    RelationshipDescription = $"从表 {tableName} 通过 {col} 关联到主表 {refTab} 的 {refCol}"
+                                });
+                            }
+                        }
+                        else // SQL Server
+                        {
+                            string fkQuery = @"
+                                        SELECT 
+                                            FK.name AS FK_NAME,
+                                            COL.name AS COLUMN_NAME,
+                                            REFCOL.name AS REFERENCED_COLUMN_NAME,
+                                            REFTAB.name AS REFERENCED_TABLE_NAME
+                                        FROM 
+                                            sys.foreign_keys FK
+                                            INNER JOIN sys.foreign_key_columns FKC ON FK.object_id = FKC.constraint_object_id
+                                            INNER JOIN sys.columns COL ON FKC.parent_column_id = COL.column_id AND FKC.parent_object_id = COL.object_id
+                                            INNER JOIN sys.columns REFCOL ON FKC.referenced_column_id = REFCOL.column_id AND FKC.referenced_object_id = REFCOL.object_id
+                                            INNER JOIN sys.tables TAB ON FKC.parent_object_id = TAB.object_id
+                                            INNER JOIN sys.tables REFTAB ON FKC.referenced_object_id = REFTAB.object_id
+                                        WHERE 
+                                            TAB.name = '" + tableName + "'";
+                            DataTable fkTable = db.Ado.GetDataTable(fkQuery);
+                            foreach (DataRow fkRow in fkTable.Rows)
+                            {
+                                var fkName = Convert.ToString(fkRow["FK_NAME"]) ?? string.Empty;
+                                var col = Convert.ToString(fkRow["COLUMN_NAME"]) ?? string.Empty;
+                                var refCol = Convert.ToString(fkRow["REFERENCED_COLUMN_NAME"]) ?? string.Empty;
+                                var refTab = Convert.ToString(fkRow["REFERENCED_TABLE_NAME"]) ?? string.Empty;
+                                tableInfoGen.ForeignKeys.Add(new ForeignKeyInfo
+                                {
+                                    ForeignKeyName = fkName,
+                                    ColumnName = col,
+                                    ReferencedColumnName = refCol,
+                                    ReferencedTableName = refTab,
+                                    RelationshipDescription = $"从表 {tableName} 通过 {col} 关联到主表 {refTab} 的 {refCol}"
+                                });
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning($"获取表{tableName}外键失败：{ex.Message}");
+                    }
+
+                    results.Add(tableInfoGen);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"获取选定表{rawName}详细Schema时出错：{ex.Message}");
+                }
+            }
+
+            return results;
         }
     }
 }

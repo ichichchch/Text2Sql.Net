@@ -1567,6 +1567,11 @@
             获取SqlSugar数据库类型
             </summary>
         </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.GetTablesDetailsAsync(System.String,System.Collections.Generic.List{System.String})">
+            <summary>
+            仅为指定表获取详细 Schema（列与外键等），避免全库扫描
+            </summary>
+        </member>
         <member name="T:Text2Sql.Net.Domain.Service.SemanticService">
             <summary>
             语义服务实现
