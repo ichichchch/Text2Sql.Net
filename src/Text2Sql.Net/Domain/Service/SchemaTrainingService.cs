@@ -177,6 +177,18 @@ namespace Text2Sql.Net.Domain.Service
                     return false;
                 }
 
+                // 参数验证和清理
+                var cleanedTableNames = tableNames.Where(name => !string.IsNullOrWhiteSpace(name))
+                                                 .Select(name => name.Trim())
+                                                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                                                 .ToList();
+                
+                if (!cleanedTableNames.Any())
+                {
+                    _logger.LogWarning("没有有效的表名");
+                    return false;
+                }
+
                 // 获取数据库连接配置
                 var connectionConfig = await _connectionRepository.GetByIdAsync(connectionId);
                 if (connectionConfig == null)
@@ -194,24 +206,24 @@ namespace Text2Sql.Net.Domain.Service
                 }
 
                 // 筛选指定的表
-                var selectedTables = allTables.Where(t => tableNames.Contains(t.TableName, StringComparer.OrdinalIgnoreCase)).ToList();
+                var selectedTables = allTables.Where(t => cleanedTableNames.Contains(t.TableName, StringComparer.OrdinalIgnoreCase)).ToList();
                 if (!selectedTables.Any())
                 {
-                    _logger.LogWarning($"未找到指定的表：{string.Join(", ", tableNames)}");
+                    _logger.LogWarning($"未找到指定的表：{string.Join(", ", cleanedTableNames)}");
                     return false;
                 }
 
                 // 清理选定表的旧嵌入数据
-                foreach (var tableName in tableNames)
+                foreach (var tableName in cleanedTableNames)
                 {
                     await _embeddingRepository.DeleteByTableNameAsync(connectionId, tableName);
                 }
 
                 // 仅获取选定表的详细Schema信息（避免扫描全部表）
-                var selectedTablesWithDetails = await GetTablesDetailsAsync(connectionId, tableNames);
+                var selectedTablesWithDetails = await GetTablesDetailsAsync(connectionId, cleanedTableNames);
                 if (selectedTablesWithDetails == null || selectedTablesWithDetails.Count == 0)
                 {
-                    _logger.LogWarning($"未能获取到选定表的详细Schema信息：{string.Join(", ", tableNames)}");
+                    _logger.LogWarning($"未能获取到选定表的详细Schema信息：{string.Join(", ", cleanedTableNames)}");
                     return false;
                 }
 
@@ -275,13 +287,18 @@ namespace Text2Sql.Net.Domain.Service
                     if (existingSchema != null && !string.IsNullOrWhiteSpace(existingSchema.SchemaContent))
                     {
                         var currentTables = JsonConvert.DeserializeObject<List<TableInfo>>(existingSchema.SchemaContent) ?? new List<TableInfo>();
-                        // 移除同名表（忽略大小写），用本次训练的详细 Schema 覆盖
-                        var comparer = StringComparer.OrdinalIgnoreCase;
-                        currentTables = currentTables.Where(t => !tableNames.Contains(t.TableName, comparer)).ToList();
-                        currentTables.AddRange(selectedTablesWithDetails);
+                        
+                        // 使用线程安全的方式更新Schema - 避免并发修改
+                        lock (existingSchema)
+                        {
+                            // 移除同名表（忽略大小写），用本次训练的详细 Schema 覆盖
+                            var comparer = StringComparer.OrdinalIgnoreCase;
+                            var filteredTables = currentTables.Where(t => !cleanedTableNames.Contains(t.TableName, comparer)).ToList();
+                            filteredTables.AddRange(selectedTablesWithDetails);
 
-                        existingSchema.SchemaContent = JsonConvert.SerializeObject(currentTables, Formatting.Indented);
-                        existingSchema.UpdateTime = DateTime.Now;
+                            existingSchema.SchemaContent = JsonConvert.SerializeObject(filteredTables, Formatting.Indented);
+                            existingSchema.UpdateTime = DateTime.Now;
+                        }
                         await _schemaRepository.UpdateAsync(existingSchema);
                     }
                     else

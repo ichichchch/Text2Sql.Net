@@ -222,12 +222,22 @@
         _trainingLoading = true;
         try
         {
+            // 创建副本避免并发修改
             var selectedTableNames = _selectedTables.ToList();
-            var result = await SchemaTrainingService.TrainDatabaseSchemaAsync(Id, selectedTableNames);
+            
+            // 参数验证
+            var validTableNames = selectedTableNames.Where(name => !string.IsNullOrWhiteSpace(name)).ToList();
+            if (!validTableNames.Any())
+            {
+                _ = MessageService.Warning("没有有效的表名可以训练");
+                return;
+            }
+            
+            var result = await SchemaTrainingService.TrainDatabaseSchemaAsync(Id, validTableNames);
             
             if (result)
             {
-                _ = MessageService.Success($"成功训练 {selectedTableNames.Count} 个表的Schema信息");
+                _ = MessageService.Success($"成功训练 {validTableNames.Count} 个表的Schema信息");
                 NavigateToDetails();
             }
             else
@@ -281,6 +291,7 @@
     {
         if (_filteredTables.Any())
         {
+            // 只考虑过滤后的表，确保逻辑一致性
             _selectAll = _filteredTables.All(t => _selectedTables.Contains(t.TableName));
         }
         else
