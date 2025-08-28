@@ -162,6 +162,19 @@
             格式化字节数为可读字符串
             </summary>
         </member>
+        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.Create.GetDefaultPortForDbType(System.String)">
+            <summary>
+            根据数据库类型获取默认端口号
+            </summary>
+            <param name="dbType">数据库类型</param>
+            <returns>默认端口号</returns>
+        </member>
+        <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.Create.OnPortChanged(System.Object)">
+            <summary>
+            处理端口号变更事件，标记为用户手动修改
+            </summary>
+            <param name="value">端口号值</param>
+        </member>
         <member name="M:Text2Sql.Net.Web.Pages.DatabaseConnection.DatabaseChat.LoadDatabaseConnections">
             <summary>
             加载数据库连接列表

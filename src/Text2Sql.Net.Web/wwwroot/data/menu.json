@@ -16,5 +16,12 @@
     "name": "问答示例",
     "key": "qa-examples",
     "icon": "question-circle"
+  },
+  {
+    "path": "https://antsk.cn",
+    "name": "企业解决方案",
+    "key": "enterprise-solution",
+    "icon": "solution",
+    "target": "_blank"
   }
 ]
