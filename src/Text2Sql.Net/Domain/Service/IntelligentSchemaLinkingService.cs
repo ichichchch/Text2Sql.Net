@@ -78,6 +78,11 @@ namespace Text2Sql.Net.Domain.Service
                 // 应用表关联推断
                 var extendedTables = await InferRelatedTablesAsync(relevantTables, allTables);
 
+                foreach (var item in extendedTables)
+                {
+                    item.Columns.RemoveAll(a => a.IsEnable == false);                    
+                }
+
                 // 生成匹配详情
                 var matchingDetails = await GenerateMatchingDetailsAsync(userMessage, extendedTables, memory, connectionId);
 

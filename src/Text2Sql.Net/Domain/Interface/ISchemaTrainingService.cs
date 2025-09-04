@@ -23,7 +23,15 @@ namespace Text2Sql.Net.Domain.Interface
         /// <param name="tableNames">要训练的表名列表</param>
         /// <returns>训练结果</returns>
         Task<bool> TrainDatabaseSchemaAsync(string connectionId, List<string> tableNames);
-        
+
+        /// <summary>
+        /// 更新训练数据库表信息
+        /// </summary>
+        /// <param name="connectionId"></param>
+        /// <param name="tableInfo"></param>
+        /// <returns></returns>
+        Task<bool> UpdateTableAsync(string connectionId, TableInfo tableInfo);
+
         /// <summary>
         /// 获取数据库表列表
         /// </summary>

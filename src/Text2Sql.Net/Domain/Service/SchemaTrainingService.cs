@@ -1,56 +1,41 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Memory;
-using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using SqlSugar;
-using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using Text2Sql.Net.Domain.Interface;
 using Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection;
 using Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema;
 using Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding;
 using DbType = SqlSugar.DbType;
-using static Dm.net.buffer.ByteArrayBuffer;
 
 namespace Text2Sql.Net.Domain.Service
 {
     /// <summary>
     /// Schema训练服务实现
     /// </summary>
-    public class SchemaTrainingService : ISchemaTrainingService
+    /// <remarks>
+    /// 构造函数
+    /// </remarks>
+    public class SchemaTrainingService(
+        IDatabaseConnectionConfigRepository connectionRepository,
+        IDatabaseSchemaRepository schemaRepository,
+        ISchemaEmbeddingRepository embeddingRepository,
+        Kernel kernel,
+        IMemoryStore memoryStore,
+        ILogger<SchemaTrainingService> logger,
+        ISemanticService semanticService) : ISchemaTrainingService
     {
-        private readonly IDatabaseConnectionConfigRepository _connectionRepository;
-        private readonly IDatabaseSchemaRepository _schemaRepository;
-        private readonly ISchemaEmbeddingRepository _embeddingRepository;
-        private readonly Kernel _kernel;
-        private readonly IMemoryStore _memoryStore;
-        private readonly ILogger<SchemaTrainingService> _logger;
-        private readonly ISemanticService _semanticService;
-
-        /// <summary>
-        /// 构造函数
-        /// </summary>
-        public SchemaTrainingService(
-            IDatabaseConnectionConfigRepository connectionRepository,
-            IDatabaseSchemaRepository schemaRepository,
-            ISchemaEmbeddingRepository embeddingRepository,
-            Kernel kernel,
-            IMemoryStore memoryStore,
-            ILogger<SchemaTrainingService> logger,
-            ISemanticService semanticService)
-        {
-            _connectionRepository = connectionRepository;
-            _schemaRepository = schemaRepository;
-            _embeddingRepository = embeddingRepository;
-            _kernel = kernel;
-            _memoryStore = memoryStore;
-            _logger = logger;
-            _semanticService = semanticService;
-        }
+        private readonly IDatabaseConnectionConfigRepository _connectionRepository = connectionRepository;
+        private readonly IDatabaseSchemaRepository _schemaRepository = schemaRepository;
+        private readonly ISchemaEmbeddingRepository _embeddingRepository = embeddingRepository;
+        private readonly Kernel _kernel = kernel;
+        private readonly IMemoryStore _memoryStore = memoryStore;
+        private readonly ILogger<SchemaTrainingService> _logger = logger;
+        private readonly ISemanticService _semanticService = semanticService;
 
         /// <inheritdoc/>
         public async Task<bool> TrainDatabaseSchemaAsync(string connectionId)
@@ -74,7 +59,10 @@ namespace Text2Sql.Net.Domain.Service
 
                 // 反序列化Schema信息
                 List<TableInfo> tables = JsonConvert.DeserializeObject<List<TableInfo>>(schemaJson);
-                if (tables == null || !tables.Any())
+                // 替换所有 Any() 用于判断集合是否有元素的地方为 Count > 0
+
+                // 1. TrainDatabaseSchemaAsync(string connectionId)
+                if (tables?.Count > 0 != true)
                 {
                     _logger.LogWarning($"没有找到表信息：{connectionId}");
                     return false;
@@ -92,7 +80,7 @@ namespace Text2Sql.Net.Domain.Service
                     try
                     {
                         // 构建包含所有列信息的表描述文本
-                        StringBuilder tableDescription = new StringBuilder();
+                        StringBuilder tableDescription = new();
                         tableDescription.AppendLine($"表名: {table.TableName}");
                         tableDescription.AppendLine($"描述: {table.Description ?? "无描述"}");
 
@@ -135,7 +123,7 @@ namespace Text2Sql.Net.Domain.Service
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, $"训练表{table.TableName}时出错：{ex.Message}");
+                        _logger.LogError(ex, message: $"训练表{table.TableName}时出错：{ex.Message}");
                     }
                 }
 
@@ -182,7 +170,7 @@ namespace Text2Sql.Net.Domain.Service
                                                  .Select(name => name.Trim())
                                                  .Distinct(StringComparer.OrdinalIgnoreCase)
                                                  .ToList();
-                
+
                 if (!cleanedTableNames.Any())
                 {
                     _logger.LogWarning("没有有效的表名");
@@ -213,10 +201,29 @@ namespace Text2Sql.Net.Domain.Service
                     return false;
                 }
 
+                //已存在的训练的表
+                var trainedTables = await GetTrainedTablesAsync(connectionId);
+
+                //选择的和已存在的并集
+                var existTabels = trainedTables.Select(a => a.TableName).Intersect(cleanedTableNames);
+
+                // 去除已存在的表，只训练新增的表
+                cleanedTableNames = [.. cleanedTableNames.Except(existTabels)];
+
+                // 需要删除的表（已训练但不在本次选择中）
+                var deleteTableNames = trainedTables.Select(a => a.TableName).Except(existTabels).ToList();
+
+
                 // 清理选定表的旧嵌入数据
-                foreach (var tableName in cleanedTableNames)
+                foreach (var tableName in cleanedTableNames.Union(deleteTableNames))
                 {
                     await _embeddingRepository.DeleteByTableNameAsync(connectionId, tableName);
+                }
+
+                if (cleanedTableNames.Count == 0)
+                {
+                    _logger.LogWarning($"没有新的需要训练的表：{connectionId}");
+                    return false;
                 }
 
                 // 仅获取选定表的详细Schema信息（避免扫描全部表）
@@ -227,11 +234,15 @@ namespace Text2Sql.Net.Domain.Service
                     return false;
                 }
 
+
+
                 // 为选定的表创建向量嵌入
                 foreach (var table in selectedTablesWithDetails)
                 {
                     try
                     {
+                        // if (existTabels.Contains(table.TableName)) continue;
+
                         // 构建包含所有列信息的表描述文本
                         StringBuilder tableDescription = new StringBuilder();
                         tableDescription.AppendLine($"表名: {table.TableName}");
@@ -286,8 +297,8 @@ namespace Text2Sql.Net.Domain.Service
                     var existingSchema = await _schemaRepository.GetByConnectionIdAsync(connectionId);
                     if (existingSchema != null && !string.IsNullOrWhiteSpace(existingSchema.SchemaContent))
                     {
-                        var currentTables = JsonConvert.DeserializeObject<List<TableInfo>>(existingSchema.SchemaContent) ?? new List<TableInfo>();
-                        
+                        var currentTables = JsonConvert.DeserializeObject<List<TableInfo>>(existingSchema.SchemaContent) ?? [];
+
                         // 使用线程安全的方式更新Schema - 避免并发修改
                         lock (existingSchema)
                         {
@@ -326,6 +337,83 @@ namespace Text2Sql.Net.Domain.Service
         }
 
         /// <inheritdoc/>
+        public async Task<bool> UpdateTableAsync(string connectionId, TableInfo tableInfo)
+        {
+            try
+            {
+                await _embeddingRepository.DeleteByTableNameAsync(connectionId, tableInfo.TableName);
+
+                #region 更新表信息
+
+                var existingSchema = await _schemaRepository.GetByConnectionIdAsync(connectionId);
+                var currentTables = JsonConvert.DeserializeObject<List<TableInfo>>(existingSchema.SchemaContent) ?? [];
+
+                var tb = currentTables.Find(a => a.TableName == tableInfo.TableName);
+                int idx = currentTables.FindIndex(t => t.TableName == tableInfo.TableName);
+                if (idx >= 0)
+                {
+                    currentTables[idx] = tableInfo;   // ‑->替换整行记录 
+                    existingSchema.SchemaContent = JsonConvert.SerializeObject(currentTables, Formatting.Indented);
+                    await _schemaRepository.UpdateAsync(existingSchema);
+                }
+
+                #endregion
+
+
+                // 构建包含所有列信息的表描述文本
+                var tableDescription = new StringBuilder();
+                tableDescription.AppendLine($"表名: {tableInfo.TableName}");
+                tableDescription.AppendLine($"描述: {tableInfo.Description ?? "无描述"}");
+
+                // 添加外键关系信息
+                if (tableInfo.ForeignKeys != null && tableInfo.ForeignKeys.Count > 0)
+                {
+                    tableDescription.AppendLine("外键关系:");
+                    foreach (var fk in tableInfo.ForeignKeys)
+                    {
+                        tableDescription.AppendLine($"  - {fk.RelationshipDescription}");
+                    }
+                }
+
+                tableDescription.AppendLine("列信息:");
+
+                foreach (var column in tableInfo.Columns.Where(a => a.IsEnable == true).ToList())
+                {
+                    tableDescription.AppendLine($"  - 列名: {column.ColumnName}, 类型: {column.DataType}, 主键: {(column.IsPrimaryKey ? "是" : "否")}, 可空: {(column.IsNullable ? "是" : "否")}, 描述: {column.Description ?? "无描述"}");
+                }
+
+                // 保存表的向量嵌入
+                var tableEmbedding = new SchemaEmbedding
+                {
+                    ConnectionId = connectionId,
+                    TableName = tableInfo.TableName,
+                    Description = tableDescription.ToString(),
+                    EmbeddingType = EmbeddingType.Table,
+                    Vector = string.Empty // 临时占位，向量数据将在后续生成
+                };
+
+                // 生成表的向量
+                string tableId = $"{connectionId}_{tableInfo.TableName}";
+                SemanticTextMemory textMemory = await _semanticService.GetTextMemory();
+
+                // 添加到向量存储
+                await textMemory.SaveInformationAsync(connectionId, id: tableId, text: JsonConvert.SerializeObject(tableEmbedding), cancellationToken: default);
+
+                // 同时保存到数据库表中
+                await _embeddingRepository.InsertAsync(tableEmbedding);
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"更新表信息时出错：{ex.Message}");
+                return false;
+            }
+
+            return true;
+
+        }
+
+        /// <inheritdoc/>
         public async Task<List<TableInfo>> GetDatabaseTablesAsync(string connectionId)
         {
             try
@@ -342,7 +430,7 @@ namespace Text2Sql.Net.Domain.Service
                 var typeForSchema = string.Equals(connectionConfig.DbType, "Excel", StringComparison.OrdinalIgnoreCase)
                     ? "sqlite"
                     : connectionConfig.DbType;
-                var dbType = GetDbType(typeForSchema);
+                var dbType = SchemaTrainingService.GetDbType(typeForSchema);
 
                 var db = new SqlSugarClient(new ConnectionConfig
                 {
@@ -449,7 +537,7 @@ namespace Text2Sql.Net.Domain.Service
                 var typeForSchema = string.Equals(connectionConfig.DbType, "Excel", StringComparison.OrdinalIgnoreCase)
                     ? "sqlite"
                     : connectionConfig.DbType;
-                var dbType = GetDbType(typeForSchema);
+                var dbType = SchemaTrainingService.GetDbType(typeForSchema);
                 // 根据数据库类型创建连接
                 var db = new SqlSugarClient(new ConnectionConfig
                 {
@@ -460,7 +548,7 @@ namespace Text2Sql.Net.Domain.Service
 
                 // 获取所有表信息
                 var tables = new List<TableInfo>();
-                
+
                 // 根据数据库类型使用不同的方式获取表结构
                 if (dbType == DbType.Sqlite)
                 {
@@ -471,7 +559,7 @@ namespace Text2Sql.Net.Domain.Service
                 {
                     // 其他数据库使用INFORMATION_SCHEMA
                     DataTable schemasTable = db.Ado.GetDataTable("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'");
-                    
+
                     foreach (DataRow row in schemasTable.Rows)
                     {
                         string tableName = row["TABLE_NAME"].ToString();
@@ -735,9 +823,9 @@ namespace Text2Sql.Net.Domain.Service
                                 else if (dbType == DbType.Sqlite)
                                 {
                                     // SQLite获取外键信息
-                                    string fkQuery = $"PRAGMA foreign_key_list('{SqliteEscapeIdentifier(tableName)}')";
+                                    string fkQuery = $"PRAGMA foreign_key_list('{SchemaTrainingService.SqliteEscapeIdentifier(tableName)}')";
                                     DataTable fkTable = db.Ado.GetDataTable(fkQuery);
-                                    
+
                                     foreach (DataRow fkRow in fkTable.Rows)
                                     {
                                         var fkInfo = new ForeignKeyInfo
@@ -787,13 +875,13 @@ namespace Text2Sql.Net.Domain.Service
         private async Task<string> GetSqliteSchemaAsync(SqlSugarClient db, DatabaseConnectionConfig connectionConfig)
         {
             var tables = new List<TableInfo>();
-            
+
             // 尝试创建注释表(如果不存在)
             await CreateCommentTablesIfNotExistsAsync(db);
-            
+
             // 获取所有表信息 - SQLite使用sqlite_master视图
             DataTable tablesMaster = db.Ado.GetDataTable("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ('table_comments', 'column_comments')");
-            
+
             // 检查是否存在注释表
             bool hasTableComments = false;
             bool hasColumnComments = false;
@@ -802,7 +890,7 @@ namespace Text2Sql.Net.Domain.Service
                 // 检查是否存在表注释表
                 DataTable checkTableCommentsTable = db.Ado.GetDataTable("SELECT name FROM sqlite_master WHERE type='table' AND name='table_comments'");
                 hasTableComments = checkTableCommentsTable.Rows.Count > 0;
-                
+
                 // 检查是否存在列注释表
                 DataTable checkColumnCommentsTable = db.Ado.GetDataTable("SELECT name FROM sqlite_master WHERE type='table' AND name='column_comments'");
                 hasColumnComments = checkColumnCommentsTable.Rows.Count > 0;
@@ -811,7 +899,7 @@ namespace Text2Sql.Net.Domain.Service
             {
                 _logger.LogWarning($"检查SQLite注释表时出错：{ex.Message}");
             }
-            
+
             // 获取表注释字典
             Dictionary<string, string> tableComments = new Dictionary<string, string>();
             if (hasTableComments)
@@ -834,7 +922,7 @@ namespace Text2Sql.Net.Domain.Service
                     _logger.LogWarning($"获取SQLite表注释时出错：{ex.Message}");
                 }
             }
-            
+
             // 获取列注释字典
             Dictionary<string, Dictionary<string, string>> columnComments = new Dictionary<string, Dictionary<string, string>>();
             if (hasColumnComments)
@@ -847,14 +935,14 @@ namespace Text2Sql.Net.Domain.Service
                         string tableName = row["table_name"]?.ToString() ?? string.Empty;
                         string columnName = row["column_name"]?.ToString() ?? string.Empty;
                         string comment = row["comment"]?.ToString() ?? string.Empty;
-                        
+
                         if (!string.IsNullOrEmpty(tableName) && !string.IsNullOrEmpty(columnName))
                         {
                             if (!columnComments.ContainsKey(tableName))
                             {
                                 columnComments[tableName] = new Dictionary<string, string>();
                             }
-                            
+
                             columnComments[tableName][columnName] = comment;
                         }
                     }
@@ -864,36 +952,36 @@ namespace Text2Sql.Net.Domain.Service
                     _logger.LogWarning($"获取SQLite列注释时出错：{ex.Message}");
                 }
             }
-            
+
             foreach (DataRow row in tablesMaster.Rows)
             {
                 string tableName = row["name"].ToString();
-                
+
                 // 跳过系统表和注释表
                 if (tableName.StartsWith("sqlite_") || tableName == "table_comments" || tableName == "column_comments")
                 {
                     continue;
                 }
-                
+
                 // 获取表注释
                 string tableComment = string.Empty;
                 if (tableComments.ContainsKey(tableName))
                 {
                     tableComment = tableComments[tableName];
                 }
-                
+
                 // 创建表信息对象
                 var tableInfo = new TableInfo
                 {
                     TableName = tableName,
-                    Description = !string.IsNullOrEmpty(tableComment) 
-                        ? $"表: {tableName}, 备注: {tableComment}" 
+                    Description = !string.IsNullOrEmpty(tableComment)
+                        ? $"表: {tableName}, 备注: {tableComment}"
                         : $"表: {tableName}"
                 };
 
                 // 获取表的列信息 - SQLite使用PRAGMA命令
-                DataTable columnsTable = db.Ado.GetDataTable($"PRAGMA table_info('{SqliteEscapeIdentifier(tableName)}')");
-                
+                DataTable columnsTable = db.Ado.GetDataTable($"PRAGMA table_info('{SchemaTrainingService.SqliteEscapeIdentifier(tableName)}')");
+
                 // 添加列信息
                 foreach (DataRow colRow in columnsTable.Rows)
                 {
@@ -901,32 +989,32 @@ namespace Text2Sql.Net.Domain.Service
                     string dataType = colRow["type"].ToString();
                     bool isNullable = colRow["notnull"].ToString() == "0";
                     bool isPrimaryKey = colRow["pk"].ToString() == "1";
-                    
+
                     // 获取列注释
                     string columnComment = string.Empty;
                     if (columnComments.ContainsKey(tableName) && columnComments[tableName].ContainsKey(columnName))
                     {
                         columnComment = columnComments[tableName][columnName];
                     }
-                    
+
                     var columnInfo = new ColumnInfo
                     {
                         ColumnName = columnName,
                         DataType = dataType,
                         IsNullable = isNullable,
                         IsPrimaryKey = isPrimaryKey,
-                        Description = !string.IsNullOrEmpty(columnComment) 
-                            ? $"列: {columnName}, 类型: {dataType}, 备注: {columnComment}" 
+                        Description = !string.IsNullOrEmpty(columnComment)
+                            ? $"列: {columnName}, 类型: {dataType}, 备注: {columnComment}"
                             : $"列: {columnName}, 类型: {dataType}"
                     };
-                    
+
                     tableInfo.Columns.Add(columnInfo);
                 }
-                
+
                 // 获取外键信息
                 try
                 {
-                    if (GetDbType(connectionConfig.DbType) == DbType.SqlServer)
+                    if (SchemaTrainingService.GetDbType(connectionConfig.DbType) == DbType.SqlServer)
                     {
                         // SQL Server获取外键信息
                         string fkQuery = @"
@@ -959,7 +1047,7 @@ namespace Text2Sql.Net.Domain.Service
                             tableInfo.ForeignKeys.Add(fkInfo);
                         }
                     }
-                    else if (GetDbType(connectionConfig.DbType) == DbType.MySql)
+                    else if (SchemaTrainingService.GetDbType(connectionConfig.DbType) == DbType.MySql)
                     {
                         // MySQL获取外键信息
                         string fkQuery = $@"
@@ -989,7 +1077,7 @@ namespace Text2Sql.Net.Domain.Service
                             tableInfo.ForeignKeys.Add(fkInfo);
                         }
                     }
-                    else if (GetDbType(connectionConfig.DbType) == DbType.PostgreSQL)
+                    else if (SchemaTrainingService.GetDbType(connectionConfig.DbType) == DbType.PostgreSQL)
                     {
                         // PostgreSQL获取外键信息
                         string fkQuery = $@"
@@ -1023,12 +1111,12 @@ namespace Text2Sql.Net.Domain.Service
                         }
                     }
                     // SQLite没有标准的外键信息查询，可以通过pragma获取
-                    else if (GetDbType(connectionConfig.DbType) == DbType.Sqlite)
+                    else if (SchemaTrainingService.GetDbType(connectionConfig.DbType) == DbType.Sqlite)
                     {
                         // SQLite获取外键信息
-                        string fkQuery = $"PRAGMA foreign_key_list('{SqliteEscapeIdentifier(tableName)}')";
+                        string fkQuery = $"PRAGMA foreign_key_list('{SchemaTrainingService.SqliteEscapeIdentifier(tableName)}')";
                         DataTable fkTable = db.Ado.GetDataTable(fkQuery);
-                        
+
                         foreach (DataRow fkRow in fkTable.Rows)
                         {
                             var fkInfo = new ForeignKeyInfo
@@ -1047,7 +1135,7 @@ namespace Text2Sql.Net.Domain.Service
                 {
                     _logger.LogWarning($"获取表{tableName}的外键信息时出错：{ex.Message}");
                 }
-                
+
                 tables.Add(tableInfo);
             }
 
@@ -1061,13 +1149,13 @@ namespace Text2Sql.Net.Domain.Service
         /// </summary>
         /// <param name="identifier">需要转义的标识符</param>
         /// <returns>转义后的标识符</returns>
-        private string SqliteEscapeIdentifier(string identifier)
+        private static string SqliteEscapeIdentifier(string identifier)
         {
             if (string.IsNullOrEmpty(identifier))
             {
                 return string.Empty;
             }
-            
+
             // 替换单引号为两个单引号
             return identifier.Replace("'", "''");
         }
@@ -1116,14 +1204,14 @@ namespace Text2Sql.Net.Domain.Service
                 var existingSchema = await _schemaRepository.GetByConnectionIdAsync(connectionId);
                 if (existingSchema == null || string.IsNullOrEmpty(existingSchema.SchemaContent))
                 {
-                    return new List<TableInfo>();
+                    return [];
                 }
 
                 // 反序列化Schema信息
                 var tables = JsonConvert.DeserializeObject<List<TableInfo>>(existingSchema.SchemaContent);
                 if (tables == null)
                 {
-                    return new List<TableInfo>();
+                    return [];
                 }
 
                 // 获取已训练的嵌入数据
@@ -1134,13 +1222,12 @@ namespace Text2Sql.Net.Domain.Service
                                                  .ToList();
 
                 // 只返回已训练的表信息
-                return tables.Where(t => trainedTableNames.Contains(t.TableName, StringComparer.OrdinalIgnoreCase))
-                           .ToList();
+                return [.. tables.Where(t => trainedTableNames.Contains(t.TableName, StringComparer.OrdinalIgnoreCase))];
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"获取已训练表信息时出错：{ex.Message}");
-                return new List<TableInfo>();
+                return [];
             }
         }
 
@@ -1177,6 +1264,27 @@ namespace Text2Sql.Net.Domain.Service
                     return null;
                 }
 
+                /* var regex = new Regex(@"^\s*-\s*列名:\s*(?<col>[\w\-]+).*?,\s*描述:\s*(?<desc>.*)$", RegexOptions.Multiline | RegexOptions.IgnoreCase);
+
+                 var columnDict = regex.Matches(embedding[0].Description)
+                          .Select(m => new
+                          {
+                              Column = m.Groups["col"].Value.Trim(),
+                              Description = m.Groups["desc"].Value.Trim()
+                          }).ToList().ToDictionary(x => x.Column);
+
+
+                 foreach (var item in table.Columns)
+                 {
+                     item.IsEnable = false;
+                     if (columnDict.TryGetValue(item.ColumnName!, out var info))
+                     {
+                         item.IsEnable = true;
+                         item.Description = info.Description;
+                     }
+                 }*/
+
+
                 return table;
             }
             catch (Exception ex)
@@ -1189,7 +1297,7 @@ namespace Text2Sql.Net.Domain.Service
         /// <summary>
         /// 获取SqlSugar数据库类型
         /// </summary>
-        private DbType GetDbType(string dbTypeStr)
+        private static DbType GetDbType(string dbTypeStr)
         {
             return dbTypeStr.ToLower() switch
             {
@@ -1220,7 +1328,7 @@ namespace Text2Sql.Net.Domain.Service
             var typeForSchema = string.Equals(connectionConfig.DbType, "Excel", StringComparison.OrdinalIgnoreCase)
                 ? "sqlite"
                 : connectionConfig.DbType;
-            var dbType = GetDbType(typeForSchema);
+            var dbType = SchemaTrainingService.GetDbType(typeForSchema);
 
             var db = new SqlSugarClient(new ConnectionConfig
             {
@@ -1247,7 +1355,7 @@ namespace Text2Sql.Net.Domain.Service
                             var hasTableComments = db.Ado.GetInt("SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name='table_comments'") > 0;
                             if (hasTableComments)
                             {
-                                var dt = db.Ado.GetDataTable($"SELECT comment FROM table_comments WHERE table_name='{SqliteEscapeIdentifier(tableName)}' LIMIT 1");
+                                var dt = db.Ado.GetDataTable($"SELECT comment FROM table_comments WHERE table_name='{SchemaTrainingService.SqliteEscapeIdentifier(tableName)}' LIMIT 1");
                                 if (dt.Rows.Count > 0)
                                 {
                                     tableComment = Convert.ToString(dt.Rows[0]["comment"]) ?? string.Empty;
@@ -1262,7 +1370,7 @@ namespace Text2Sql.Net.Domain.Service
                             Description = string.IsNullOrEmpty(tableComment) ? $"表: {tableName}" : $"表: {tableName}, 备注: {tableComment}"
                         };
 
-                        var columnsTable = db.Ado.GetDataTable($"PRAGMA table_info('{SqliteEscapeIdentifier(tableName)}')");
+                        var columnsTable = db.Ado.GetDataTable($"PRAGMA table_info('{SchemaTrainingService.SqliteEscapeIdentifier(tableName)}')");
                         foreach (DataRow colRow in columnsTable.Rows)
                         {
                             var columnName = Convert.ToString(colRow["name"]) ?? string.Empty;
@@ -1283,7 +1391,7 @@ namespace Text2Sql.Net.Domain.Service
                         // 外键
                         try
                         {
-                            var fkTable = db.Ado.GetDataTable($"PRAGMA foreign_key_list('{SqliteEscapeIdentifier(tableName)}')");
+                            var fkTable = db.Ado.GetDataTable($"PRAGMA foreign_key_list('{SchemaTrainingService.SqliteEscapeIdentifier(tableName)}')");
                             foreach (DataRow fkRow in fkTable.Rows)
                             {
                                 var col = Convert.ToString(fkRow["from"]) ?? string.Empty;

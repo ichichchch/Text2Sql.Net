@@ -26,9 +26,20 @@
         <Card Loading="@_loading">
             <ChildContent>
                 @if (_tableInfo != null)
-                {
+                {                  
                     <!-- 基本信息卡片 -->
                     <Card Title="基本信息" Size="@AntSizeLDSType.Small" Style="margin-bottom: 16px;">
+                        <Extra>
+                            <Space>                              
+                                <SpaceItem>
+                                    <Button Type="@ButtonType.Primary" Size="@ButtonSize.Default" OnClick="@SubmitAll">
+                                            <Icon Type="@IconType.Outline.Code"  />
+                                        保存修改
+                                    </Button>
+                                </SpaceItem>
+                            </Space>
+                        </Extra>
+
                         <ChildContent>
                             <Descriptions Size="@AntSizeLDSType.Small" Bordered="true" Column="2">
                                 <DescriptionsItem Title="表名" Span="1">
@@ -49,8 +60,9 @@
                                     }
                                     <Tag Color="@(foreignKeyCount > 0 ? "green" : "default")">@foreignKeyCount 个</Tag>
                                 </DescriptionsItem>
+                              
                                 <DescriptionsItem Title="描述" Span="2">
-                                    @(_tableInfo.Description ?? "无描述")
+                                    <Input Value="@(_tableInfo.Description ?? "无描述")"></Input>
                                 </DescriptionsItem>
                             </Descriptions>
                         </ChildContent>
@@ -81,10 +93,11 @@
                     <Card Title="@($"列信息 ({_tableInfo.Columns.Count} 列)")" Size="@AntSizeLDSType.Small">
                         <ChildContent>
                             <Table TItem="ColumnInfo" 
-                                   DataSource="@_tableInfo.Columns" 
+                                   DataSource="@_tableInfo.Columns.OrderByDescending(a=>a.IsEnable)" 
                                    Size="@TableSize.Small"
                                    Bordered="true"
-                                   PageSize="15"
+                                   HidePagination
+                                   PageSize="30"
                                    Responsive="true">
                                 <AntDesign.Column TData="string" DataIndex="@nameof(ColumnInfo.ColumnName)" Title="列名" Width="200">
                                     <div style="display: flex; align-items: center;">
@@ -120,12 +133,17 @@
                                         <Tag Color="default">否</Tag>
                                     }
                                 </AntDesign.Column>
+                                <AntDesign.Column TData="bool" DataIndex="@nameof(ColumnInfo.IsEnable)" Title="启动状态" Width="80" Align="@ColumnAlign.Center">
+                                     <Checkbox @bind-Value="@context.IsEnable" />
+                                </AntDesign.Column>
                                 <AntDesign.Column TData="string" DataIndex="@nameof(ColumnInfo.Description)" Title="描述">
-                                    @(context.Description ?? "无描述")
+                                     <Input @bind-Value="@context.Description" Placeholder="无描述" />
                                 </AntDesign.Column>
                             </Table>
                         </ChildContent>
                     </Card>
+
+                  
                 }
                 else if (!_loading)
                 {
@@ -147,72 +165,4 @@
     </ChildContent>
 </PageContainer>
 
-@code {
-    [Parameter] public string ConnectionId { get; set; } = string.Empty;
-    [Parameter] public string TableName { get; set; } = string.Empty;
 
-    private TableInfo? _tableInfo;
-    private bool _loading = false;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadTableData();
-    }
-
-    private async Task LoadTableData()
-    {
-        if (string.IsNullOrEmpty(ConnectionId) || string.IsNullOrEmpty(TableName))
-        {
-            _= MessageService.Error("连接ID或表名不能为空");
-            NavigateToTableList();
-            return;
-        }
-
-        _loading = true;
-        try
-        {
-            _tableInfo = await SchemaTrainingService.GetTableDetailAsync(ConnectionId, TableName);
-            if (_tableInfo == null)
-            {
-                _= MessageService.Warning($"未找到表 '{TableName}' 的训练信息");
-            }
-        }
-        catch (Exception ex)
-        {
-            _= MessageService.Error($"加载表详细信息失败: {ex.Message}");
-        }
-        finally
-        {
-            _loading = false;
-            StateHasChanged();
-        }
-    }
-
-    private void NavigateToTableList()
-    {
-        NavigationManager.NavigateTo($"/database-connection/trained-tables/{ConnectionId}");
-    }
-
-    private void NavigateToConnection()
-    {
-        NavigationManager.NavigateTo($"/database-connection/details/{ConnectionId}");
-    }
-
-    private string GetDataTypeColor(string dataType)
-    {
-        if (string.IsNullOrEmpty(dataType))
-            return "";
-
-        var type = dataType.ToLower();
-        return type switch
-        {
-            var t when t.Contains("int") || t.Contains("number") || t.Contains("decimal") || t.Contains("numeric") => "blue",
-            var t when t.Contains("varchar") || t.Contains("text") || t.Contains("char") || t.Contains("string") => "green",
-            var t when t.Contains("datetime") || t.Contains("timestamp") || t.Contains("date") || t.Contains("time") => "orange",
-            var t when t.Contains("bool") || t.Contains("bit") => "purple",
-            var t when t.Contains("float") || t.Contains("real") || t.Contains("double") => "cyan",
-            var t when t.Contains("binary") || t.Contains("blob") || t.Contains("image") => "red",
-            _ => "default"
-        };
-    }
-}

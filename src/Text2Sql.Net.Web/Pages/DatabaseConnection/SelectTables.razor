@@ -7,16 +7,26 @@
 @inject MessageService MessageService
 @inject NavigationManager NavigationManager
 
-<PageContainer Title="选择表训练">
+<PageContainer Title="@($"选择表训练")">
+    <Extra>
+        <Space>        
+            <SpaceItem>
+                <Button Type="@ButtonType.Default" OnClick="@NavigateToDetails">
+                    <Icon Type="@IconType.Outline.ArrowLeft" />
+                    返回
+                </Button>
+            </SpaceItem>
+        </Space>
+    </Extra>
+
     <ChildContent>
-        <Card Loading="@_loading">
-            <div style="margin-bottom: 16px;">
-                <Alert Type="@AlertType.Info" Message="选择要训练的数据库表" Description="请选择您想要训练的表，训练完成后这些表的Schema信息将被添加到向量数据库中。" ShowIcon="true" />
-            </div>
-            
+        <Card>     
             @if (_model != null)
             {
-                <Descriptions Title="@($"数据库连接：{_model.Name}")" Bordered>
+                <Descriptions Bordered>
+                    <DescriptionsItem Title="数据库类型" Span="1">
+                         @_model.Name
+                    </DescriptionsItem>
                     <DescriptionsItem Title="数据库类型" Span="2">
                         @_model.DbType
                     </DescriptionsItem>
@@ -24,103 +34,160 @@
                         @_model.ConnectionString
                     </DescriptionsItem>
                 </Descriptions>
-                
-                <Divider />
-                
-                <div style="margin-bottom: 16px;">
-                    <div style="display: flex; gap: 16px; align-items: center;">
-                        <div style="flex: 1;">
-                            <Input Placeholder="搜索表名或描述..." 
-                                   @bind-Value="_searchKeyword" 
-                                   @oninput="OnSearchChanged"
-                                   AllowClear="true" />
-                        </div>
-                        <div>
-                            <Space>
-                                <SpaceItem>
-                                    <Button Type="@ButtonType.Primary" Loading="@_loadingTables" OnClick="LoadTables">
-                                        刷新表列表
-                                    </Button>
-                                </SpaceItem>
-                                <SpaceItem>
-                                    <Checkbox Checked="_selectAll" CheckedChanged="OnSelectAllChanged">全选</Checkbox>
-                                </SpaceItem>
-                            </Space>
-                        </div>
-                    </div>
-                </div>
-                
-                @if (_filteredTables.Any())
+            }
+            <Alert Type="@AlertType.Info" Description="请选择您想要训练的表，训练完成后这些表的Schema信息将被添加到向量数据库中。" ShowIcon="true" />
+        </Card>
+        <div Class="flex-container">
+            <div class="flex-item">    
+                @if (_model != null)
                 {
-                    <div style="border: 1px solid #d9d9d9; border-radius: 8px; padding: 16px; max-height: 50vh; overflow-y: auto;">
-                        @foreach (var table in _filteredTables)
-                        {
-                            <div style="margin-bottom: 8px; padding: 8px; border: 1px solid #f0f0f0; border-radius: 4px;">
-                                <Checkbox Checked="_selectedTables.Contains(table.TableName)" CheckedChanged="@((bool isChecked) => OnTableSelectionChanged(table.TableName, isChecked))">
-                                    <div>
-                                        <strong>@table.TableName</strong>
-                                        @if (!string.IsNullOrEmpty(table.Description))
-                                        {
-                                            <br />
-                                            <span style="color: #666; font-size: 12px;">@table.Description</span>
-                                        }
-                                    </div>
-                                </Checkbox>
+                    <div style="margin-bottom: 16px;">
+                        <div style="display: flex; gap: 16px; align-items: center;">
+                            <div style="flex: 1;">
+                                <Input Placeholder="搜索表名或描述..." @bind-Value="_searchKeyword" @oninput="OnSearchChanged" AllowClear="true" />
                             </div>
-                        }
+                            <div>
+                                <Space>
+                                    <SpaceItem>
+                                        <Checkbox CheckedChanged="OnSelectAllChanged">全选</Checkbox>
+                                    </SpaceItem>
+                                    <SpaceItem>
+                                        <Button Type="@ButtonType.Primary" Loading="@_loadingTables" OnClick="LoadTables">
+                                          <Icon Type="@IconType.Outline.Cloud" /> 刷新
+                                        </Button>
+                                    </SpaceItem>  
+                                </Space>
+                            </div>
+                        </div>
                     </div>
-                    
-                    @if (!string.IsNullOrWhiteSpace(_searchKeyword) && _filteredTables.Count != _tables.Count)
+
+                    @if (_filteredTables.Any())
                     {
-                        <div style="margin-top: 8px; color: #666; font-size: 14px;">
-                            找到 @_filteredTables.Count 个表（共 @_tables.Count 个表）
+                        <div style="border: 1px solid #d9d9d9; border-radius: 8px; padding: 16px; max-height: 78vh; overflow-y: auto;">
+                            @foreach (var table in _filteredTables)
+                            {
+                                <div style="margin-bottom: 8px; padding: 8px; border: 1px solid #f0f0f0; border-radius: 4px;">
+                                    <Checkbox Checked="_trainedTables.Select(a=>a.TableName).Contains(table.TableName)" OnChange="@((bool isChecked) => OnTableSelectionChanged(table.TableName, isChecked))">
+                                        <div>
+                                            <strong>@table.TableName</strong>
+                                            @if (!string.IsNullOrEmpty(table.Description))
+                                            {
+                                                <br />
+                                                <span style="color: #666; font-size: 12px;">@table.Description</span>
+                                            }
+                                        </div>
+                                    </Checkbox>
+                                </div>
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(_searchKeyword) && _filteredTables.Count != _tables.Count)
+                        {
+                            <div style="margin-top: 8px; color: #666; font-size: 14px;">
+                                找到 @_filteredTables.Count 个表（共 @_tables.Count 个表）
+                            </div>
+                        }                 
+                    }
+                    else if (!_loadingTables)
+                    {
+                        <div style="text-align: center; padding: 40px; color: #999;">
+                            @if (!string.IsNullOrWhiteSpace(_searchKeyword))
+                            {
+                                <div>未找到匹配的表</div>
+                                <div style="font-size: 12px; margin-top: 8px;">请尝试修改搜索关键词</div>
+                            }
+                            else
+                            {
+                                <div>暂无数据表</div>
+                            }
                         </div>
                     }
-                    
-                    <div style="margin-top: 16px;">
+                }     
+            </div>
+            <div class="flex-item">
+                <div style="display: flex; gap: 16px; align-items: center;">
+                    <div style="flex: 1;">
+                        <Alert Type="@AlertType.Warning" Message="@($"已选择： {_trainedTables.Count} 个表")" ShowIcon="true" />
+                    </div>
+                    <div>
                         <Space>
                             <SpaceItem>
-                                <Button Type="@ButtonType.Primary" Size="@ButtonSize.Large" Loading="@_trainingLoading" OnClick="TrainSelectedTables" Disabled="@(!_selectedTables.Any())">
-                                    训练选中的表 (@_selectedTables.Count())
+                                <Button Type="@ButtonType.Primary"  Loading="@_trainingLoading" OnClick="TrainSelectedTables" Disabled="@(!_trainedTables.Any())">
+                                训练选中的表 (@_trainedTables.Count())
                                 </Button>
-                            </SpaceItem>
+                            </SpaceItem>   
                             <SpaceItem>
-                                <Button Size="@ButtonSize.Large" OnClick="@NavigateToDetails">
-                                    返回详情
+                            <Button Type="@ButtonType.Link" OnClick="ClearSelectALL" Disabled="@(!_trainedTables.Any())">
+                                 <Icon Type="@IconType.Outline.DeleteRow" />
+                                    清空已选
                                 </Button>
-                            </SpaceItem>
+                            </SpaceItem>                                 
                         </Space>
                     </div>
-                }
-                else if (!_loadingTables)
+                </div>
+                @if (_trainedTables?.Any() == true)
                 {
-                    <div style="text-align: center; padding: 40px; color: #999;">
-                        @if (!string.IsNullOrWhiteSpace(_searchKeyword))
-                        {
-                            <div>未找到匹配的表</div>
-                            <div style="font-size: 12px; margin-top: 8px;">请尝试修改搜索关键词</div>
-                        }
-                        else
-                        {
-                            <div>暂无数据表</div>
-                        }
-                    </div>
+                    <Table TItem="TableInfo"
+                           DataSource="@_trainedTables"
+                           Bordered="true"
+                           Size="@TableSize.Default"   
+                           PageSize="10"
+                           Responsive="true">
+                        <AntDesign.Column TData="string" DataIndex="@nameof(TableInfo.TableName)" Title="表名">
+                            <Text Strong>@context.TableName</Text>
+                            <br />
+                            <Text>@context.Description</Text>
+                        </AntDesign.Column>
+                        <AntDesign.Column TData="int" Title="列数" Width="60" Align="@ColumnAlign.Center">
+                            <Tag Color="blue">@context.Columns.Count</Tag>
+                        </AntDesign.Column>
+
+                        <ActionColumn Title="操作" Width="80">
+                            <Space>
+                                <SpaceItem>
+                                    <Button Type="@ButtonType.Link" Size="@ButtonSize.Small" 
+                                      OnClick="@(() => RemoveSelect(context))" >
+                                        <Icon Type="@IconType.Outline.Delete" />
+                                        移除
+                                    </Button>
+                                </SpaceItem>
+                            </Space>
+                        </ActionColumn>
+                    </Table>
                 }
-            }
-        </Card>
+            </div>
+        </div>
     </ChildContent>
 </PageContainer>
 
+<style>   
+    .flex-container {
+        display: flex; /* 启用 Flex 布局 */
+        width: 100%; /* 确保容器宽度占满父级 */
+        gap: 16px; /* 可选：设置子元素间距 */
+    }
+
+    /* 子元素样式 */
+    .flex-item {
+        flex: 1; /* 子元素平分可用空间 */
+        /* 可选：设置最小宽度避免内容过窄 */
+        min-width: 0; /* 解决内容溢出问题（如长文本） */
+    }
+</style>
+
 @code {
+
     [Parameter]
     public string Id { get; set; } = string.Empty;
 
     private DatabaseConnectionConfig? _model = null;
     private List<TableInfo> _tables = new();
     private List<TableInfo> _filteredTables = new();
-    private List<string> _selectedTables = new();
+
+    private List<TableInfo> _trainedTables = new();
+
     private string _searchKeyword = string.Empty;
-    private bool _selectAll = false;
+ 
     private bool _loading = false;
     private bool _loadingTables = false;
     private bool _trainingLoading = false;
@@ -165,6 +232,9 @@
         try
         {
             _tables = await SchemaTrainingService.GetDatabaseTablesAsync(Id);
+
+            _trainedTables = await SchemaTrainingService.GetTrainedTablesAsync(Id);        
+
             ApplySearch();
             StateHasChanged();
         }
@@ -180,40 +250,47 @@
     }
 
     private void OnSelectAllChanged(bool isChecked)
-    {
-        _selectAll = isChecked;
-        if (_selectAll)
+    {     
+        if (isChecked)
         {
-            _selectedTables = _filteredTables.Select(t => t.TableName).ToList();
+            _filteredTables.ForEach((table) =>
+            {
+                 if (_trainedTables.All(t => t.TableName != table.TableName)) { _trainedTables.Add(table);  }
+            });
+   
+           // _selectedTables = _filteredTables.Select(t => t.TableName).ToList();
         }
-        else
-        {
-            _selectedTables.Clear();
-        }
+      
         StateHasChanged();
     }
 
     private void OnTableSelectionChanged(string tableName, bool isChecked)
     {
+        if (string.IsNullOrEmpty(tableName)) return;
+
+        var table = _tables.FirstOrDefault(t => t.TableName == tableName);
+        if (table == null) return;
+
+
         if (isChecked)
-        {
-            if (!_selectedTables.Contains(tableName))
-            {
-                _selectedTables.Add(tableName);
-            }
+        {    
+            if (_trainedTables.All(t => t.TableName != table.TableName)) { _trainedTables.Add(table);  }
         }
         else
         {
-            _selectedTables.Remove(tableName);
+            var tbname = _trainedTables.FirstOrDefault(a => a.TableName == tableName);
+            if (tbname != null)
+            {
+                _trainedTables.Remove(tbname);
+            }
         }
-        
-        _selectAll = _selectedTables.Count == _filteredTables.Count;
+
         StateHasChanged();
     }
 
     private async Task TrainSelectedTables()
     {
-        if (!_selectedTables.Any())
+        if (!_trainedTables.Any())
         {
             _ = MessageService.Warning("请选择要训练的表");
             return;
@@ -223,8 +300,8 @@
         try
         {
             // 创建副本避免并发修改
-            var selectedTableNames = _selectedTables.ToList();
-            
+            var selectedTableNames = _trainedTables.Select(a=>a.TableName).ToList();
+
             // 参数验证
             var validTableNames = selectedTableNames.Where(name => !string.IsNullOrWhiteSpace(name)).ToList();
             if (!validTableNames.Any())
@@ -232,9 +309,9 @@
                 _ = MessageService.Warning("没有有效的表名可以训练");
                 return;
             }
-            
+
             var result = await SchemaTrainingService.TrainDatabaseSchemaAsync(Id, validTableNames);
-            
+
             if (result)
             {
                 _ = MessageService.Success($"成功训练 {validTableNames.Count} 个表的Schema信息");
@@ -277,26 +354,31 @@
         else
         {
             var keyword = _searchKeyword.ToLowerInvariant();
-            _filteredTables = _tables.Where(t => 
+            _filteredTables = _tables.Where(t =>
                 t.TableName.ToLowerInvariant().Contains(keyword) ||
                 (!string.IsNullOrEmpty(t.Description) && t.Description.ToLowerInvariant().Contains(keyword))
             ).ToList();
         }
-        
-        // 更新全选状态
-        UpdateSelectAllState();
     }
 
-    private void UpdateSelectAllState()
+ 
+
+    /// <summary>
+    /// 移除已选择的表
+    /// </summary>
+    /// <param name="table"></param>
+    private void RemoveSelect(TableInfo table)
     {
-        if (_filteredTables.Any())
+        if (_trainedTables.Contains(table))
         {
-            // 只考虑过滤后的表，确保逻辑一致性
-            _selectAll = _filteredTables.All(t => _selectedTables.Contains(t.TableName));
+            _trainedTables.Remove(table);
         }
-        else
-        {
-            _selectAll = false;
-        }
+    
+        StateHasChanged();
+    }
+
+    private void ClearSelectALL()
+    {
+        _trainedTables.Clear();
     }
 }

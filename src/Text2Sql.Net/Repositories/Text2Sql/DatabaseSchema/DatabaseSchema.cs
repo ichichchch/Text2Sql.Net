@@ -94,6 +94,11 @@ namespace Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema
         /// 列描述
         /// </summary>
         public string Description { get; set; }
+
+        /// <summary>
+        /// 是否启用（用于训练时选择性启用）
+        /// </summary>
+        public bool IsEnable { get; set; } = true;
     }
 
     /// <summary>
