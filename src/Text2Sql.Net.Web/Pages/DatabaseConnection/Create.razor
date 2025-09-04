@@ -44,9 +44,7 @@
                         <Input @bind-Value="@_model.Server" Placeholder="请输入服务器地址" />
                         </FormItem>
                         <FormItem Label="端口号" Required>
-                            <AntDesign.InputNumber TValue="int?" @bind-Value="@_model.Port" 
-                                                  Placeholder="请输入端口号" Min="1" Max="65535" 
-                                                  OnInput="OnPortChanged" />
+                            <AntDesign.InputNumber TValue="int?" @bind-Value="@_model.Port" Placeholder="请输入端口号" Min="1" Max="65535" />
                         </FormItem>
                         <FormItem Label="数据库名称">
                             <Input @bind-Value="@_model.Database" Placeholder="请输入数据库名称" />
@@ -104,27 +102,18 @@
     private bool _importing = false;
     private IBrowserFile _excelFile;
     private string _excelDbName = "excel_db";
-    private bool _isPortUserModified = false; // 标记端口是否被用户手动修改过
     [Parameter]  public string ConId { get; set; }
 
     protected override void OnInitialized()
     {
         if (!string.IsNullOrEmpty(ConId))
         {
-            // 编辑模式：加载现有配置
             _model = DatabaseConnectionConfigRepository.GetById(ConId);
         }
         else
         {
-            // 新建模式：初始化默认值
+            // 设置默认端口
             _model.Port = 0;
-        }
-        
-        // 在编辑模式下，如果端口有值且不是默认值，认为是用户修改过的
-        if (!string.IsNullOrEmpty(ConId) && _model.Port.HasValue && _model.Port.Value > 0)
-        {
-            var defaultPort = GetDefaultPortForDbType(_model.DbType);
-            _isPortUserModified = _model.Port.Value != defaultPort;
         }
     }
 
@@ -134,11 +123,16 @@
         {
             _model.DbType = selectedValue;
 
-            // 只有在端口为0或null，或者端口未被用户手动修改时才设置默认端口
-            if (!_isPortUserModified && (_model.Port == null || _model.Port == 0))
+            // 根据数据库类型设置默认端口
+            _model.Port = selectedValue switch
             {
-                _model.Port = GetDefaultPortForDbType(selectedValue);
-            }
+                DatabaseTypeEnum.SQLServer => 1433,
+                DatabaseTypeEnum.MySQL => 3306,
+                DatabaseTypeEnum.PostgreSQL => 5432,
+                DatabaseTypeEnum.SQLite => 0,
+                DatabaseTypeEnum.Excel => 0,
+                _ => 0
+            };
 
             if (selectedValue == DatabaseTypeEnum.Excel)
             {
@@ -276,33 +270,6 @@
         var safe = new string(name.Where(ch => char.IsLetterOrDigit(ch) || ch == '_' || ch == '-').ToArray());
         if (string.IsNullOrWhiteSpace(safe)) safe = "sheet";
         return safe;
-    }
-
-    /// <summary>
-    /// 根据数据库类型获取默认端口号
-    /// </summary>
-    /// <param name="dbType">数据库类型</param>
-    /// <returns>默认端口号</returns>
-    private int GetDefaultPortForDbType(string dbType)
-    {
-        return dbType switch
-        {
-            DatabaseTypeEnum.SQLServer => 1433,
-            DatabaseTypeEnum.MySQL => 3306,
-            DatabaseTypeEnum.PostgreSQL => 5432,
-            DatabaseTypeEnum.SQLite => 0,
-            DatabaseTypeEnum.Excel => 0,
-            _ => 0
-        };
-    }
-
-    /// <summary>
-    /// 处理端口号变更事件，标记为用户手动修改
-    /// </summary>
-    /// <param name="value">端口号值</param>
-    private void OnPortChanged(object value)
-    {
-        _isPortUserModified = true;
     }
 
     private async Task HandleSubmit()

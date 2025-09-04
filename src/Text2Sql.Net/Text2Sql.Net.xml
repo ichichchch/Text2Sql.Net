@@ -402,6 +402,14 @@
             <param name="tableNames">要训练的表名列表</param>
             <returns>训练结果</returns>
         </member>
+        <member name="M:Text2Sql.Net.Domain.Interface.ISchemaTrainingService.UpdateTableAsync(System.String,Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo)">
+            <summary>
+            更新训练数据库表信息
+            </summary>
+            <param name="connectionId"></param>
+            <param name="tableInfo"></param>
+            <returns></returns>
+        </member>
         <member name="M:Text2Sql.Net.Domain.Interface.ISchemaTrainingService.GetDatabaseTablesAsync(System.String)">
             <summary>
             获取数据库表列表
@@ -1516,16 +1524,25 @@
             <summary>
             Schema训练服务实现
             </summary>
+            <remarks>
+            构造函数
+            </remarks>
         </member>
         <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.#ctor(Text2Sql.Net.Repositories.Text2Sql.DatabaseConnection.IDatabaseConnectionConfigRepository,Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.IDatabaseSchemaRepository,Text2Sql.Net.Repositories.Text2Sql.SchemaEmbedding.ISchemaEmbeddingRepository,Microsoft.SemanticKernel.Kernel,Microsoft.SemanticKernel.Memory.IMemoryStore,Microsoft.Extensions.Logging.ILogger{Text2Sql.Net.Domain.Service.SchemaTrainingService},Text2Sql.Net.Domain.Interface.ISemanticService)">
             <summary>
-            构造函数
+            Schema训练服务实现
             </summary>
+            <remarks>
+            构造函数
+            </remarks>
         </member>
         <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.TrainDatabaseSchemaAsync(System.String)">
             <inheritdoc/>
         </member>
         <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.TrainDatabaseSchemaAsync(System.String,System.Collections.Generic.List{System.String})">
+            <inheritdoc/>
+        </member>
+        <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.UpdateTableAsync(System.String,Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo)">
             <inheritdoc/>
         </member>
         <member name="M:Text2Sql.Net.Domain.Service.SchemaTrainingService.GetDatabaseTablesAsync(System.String)">
@@ -2169,6 +2186,11 @@
         <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ColumnInfo.Description">
             <summary>
             列描述
+            </summary>
+        </member>
+        <member name="P:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ColumnInfo.IsEnable">
+            <summary>
+            是否启用（用于训练时选择性启用）
             </summary>
         </member>
         <member name="T:Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.ForeignKeyInfo">

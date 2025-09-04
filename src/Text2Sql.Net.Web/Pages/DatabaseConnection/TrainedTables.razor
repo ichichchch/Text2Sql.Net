@@ -34,7 +34,7 @@
                     
                     <Table TItem="TableInfo" 
                            DataSource="@_trainedTables" 
-                           Size="@TableSize.Default"
+                           Size="@TableSize.Default"                          
                            Bordered="true"
                            PageSize="10"
                            Responsive="true">
@@ -42,10 +42,10 @@
                             <Text Strong>@context.TableName</Text>
                         </AntDesign.Column>
                         <AntDesign.Column TData="string" DataIndex="@nameof(TableInfo.Description)" Title="描述">
-                            @(context.Description ?? "无描述")
+                            <Text>@(context.Description ?? "无描述")</Text>
                         </AntDesign.Column>
-                        <AntDesign.Column TData="int" Title="列数" Width="80" Align="@ColumnAlign.Center">
-                            <Tag Color="blue">@context.Columns.Count</Tag>
+                        <AntDesign.Column TData="int" Title="启用/列数" Width="100" Align="@ColumnAlign.Center">
+                            <Tag Color="blue"> @context.Columns.Count(a=>a.IsEnable) / @context.Columns.Count</Tag>
                         </AntDesign.Column>
                         <AntDesign.Column TData="int" Title="主键数" Width="80" Align="@ColumnAlign.Center">
                             @{
@@ -63,14 +63,14 @@
                                 @foreignKeyCount
                             </Tag>
                         </AntDesign.Column>
-                        <ActionColumn Title="操作" Width="120">
+                        <ActionColumn Title="操作" Width="80">
                             <Space>
                                 <SpaceItem>
                                     <Button Type="@ButtonType.Primary" 
                                             Size="@ButtonSize.Small" 
                                             OnClick="@(() => ViewTableDetail(context.TableName))">
                                         <Icon Type="@IconType.Outline.Eye" />
-                                        查看详情
+                                        详情
                                     </Button>
                                 </SpaceItem>
                             </Space>

@@ -1,9 +1,7 @@
 ﻿@namespace Text2Sql.Net.Web
 @inherits LayoutComponentBase
 
-<AntDesign.ProLayout.BasicLayout 
-    Logo="@("https://gw.alipayobjects.com/zos/rmsportal/KDpgvguMpGfqaHPjicRK.svg")"
-    MenuData="_menuData">
+<AntDesign.ProLayout.BasicLayout Logo="@("https://gw.alipayobjects.com/zos/rmsportal/KDpgvguMpGfqaHPjicRK.svg")" MenuData="_menuData">
     <RightContentRender>
         <Text2Sql.Net.Web.Components.RightContent />
     </RightContentRender>
@@ -15,6 +13,12 @@
     </FooterRender>
 </AntDesign.ProLayout.BasicLayout>
 <SettingDrawer />
+
+<style>
+    .ant-pro-global-footer {
+        margin: 0px;
+    }
+</style>
 
 @code
 {
@@ -40,3 +44,4 @@
         }
     };
 }
+

@@ -56,7 +56,7 @@ namespace Text2Sql.Net.Domain.Service
             string schemaInfo, 
             string dbType, 
             string examplesPrompt,
-            UserProfile userProfile = null)
+            UserProfile? userProfile = null)
         {
             try
             {
@@ -70,7 +70,7 @@ namespace Text2Sql.Net.Domain.Service
                 var reasoningChain = await GenerateReasoningChainAsync(userMessage, schemaInfo);
 
                 // 4. 构建渐进式Prompt（包含用户提供的问答示例）
-                var prompt = BuildProgressivePromptWithExamples(userMessage, schemaInfo, dbType, sortedExamples, reasoningChain, examplesPrompt, userProfile);
+                var prompt = AdvancedPromptService.BuildProgressivePromptWithExamples(userMessage, schemaInfo, dbType, sortedExamples, reasoningChain, examplesPrompt, userProfile);
 
                 _logger.LogInformation($"生成了包含 {selectedExamples.Count} 个内置示例的渐进式Prompt" + 
                     (!string.IsNullOrEmpty(examplesPrompt) ? "，并包含了用户问答示例" : ""));
@@ -148,7 +148,7 @@ namespace Text2Sql.Net.Domain.Service
         /// <summary>
         /// 构建渐进式复杂度Prompt
         /// </summary>
-        private string BuildProgressivePrompt(
+        private static string BuildProgressivePrompt(
             string userMessage, 
             string schemaInfo, 
             string dbType, 
@@ -297,7 +297,7 @@ namespace Text2Sql.Net.Domain.Service
         /// <summary>
         /// 构建包含用户问答示例的渐进式Prompt
         /// </summary>
-        private string BuildProgressivePromptWithExamples(
+        private static string BuildProgressivePromptWithExamples(
             string userMessage, 
             string schemaInfo, 
             string dbType, 
@@ -313,6 +313,7 @@ namespace Text2Sql.Net.Domain.Service
             prompt.AppendLine();
             prompt.AppendLine("您是一位资深的SQL查询生成专家，具备深厚的数据库理论基础和丰富的实战经验。");
             prompt.AppendLine("您的任务是将自然语言查询转换为高效、准确的SQL语句。");
+            prompt.AppendLine($"当前时间:{DateTime.Now}");
             prompt.AppendLine();
 
             // 2. 数据库信息
