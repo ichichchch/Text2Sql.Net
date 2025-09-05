@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/解决方案项/">
+    <File Path=".github/workflows/nuget-publish.yml" />
+    <File Path="Directory.Build.props" />
+    <File Path="README.en.md" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="src/Text2Sql.Net.Web/Text2Sql.Net.Web.csproj" />
+  <Project Path="src/Text2Sql.Net/Text2Sql.Net.csproj" />
+</Solution>
