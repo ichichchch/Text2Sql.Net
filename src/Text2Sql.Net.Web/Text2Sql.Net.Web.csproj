@@ -44,10 +44,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="Pages\DatabaseConnection\DatabaseChat.razor" />
   </ItemGroup>
 

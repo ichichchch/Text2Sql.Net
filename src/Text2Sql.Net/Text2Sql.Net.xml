@@ -623,36 +623,11 @@
         <member name="M:Text2Sql.Net.Domain.Service.ChatService.OptimizeSqlAndExecuteAsync(System.String,System.String,System.String,System.String)">
             <inheritdoc/>
         </member>
-        <member name="M:Text2Sql.Net.Domain.Service.ChatService.GetRelevantSchemaInfoAsync(System.String,System.String)">
-            <summary>
-            获取与用户问题相关的数据库Schema信息
-            </summary>
-            <param name="connectionId">数据库连接ID</param>
-            <param name="userMessage">用户问题</param>
-            <returns>相关Schema信息</returns>
-        </member>
-        <member name="M:Text2Sql.Net.Domain.Service.ChatService.InferRelatedTables(System.Collections.Generic.List{Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo},System.Collections.Generic.List{Text2Sql.Net.Repositories.Text2Sql.DatabaseSchema.TableInfo})">
-            <summary>
-            推断并添加与已找到表相关联的表
-            </summary>
-            <param name="sourceTables">已找到的相关表</param>
-            <param name="allTables">所有表列表</param>
-            <returns>包含关联表的扩展列表</returns>
-        </member>
         <member name="M:Text2Sql.Net.Domain.Service.ChatService.GenerateSqlWithAdvancedPromptAsync(System.String)">
             <summary>
             使用高级Prompt生成SQL查询
             </summary>
             <param name="optimizedPrompt">优化后的Prompt</param>
-            <returns>生成的SQL查询</returns>
-        </member>
-        <member name="M:Text2Sql.Net.Domain.Service.ChatService.GenerateSqlQueryAsync(System.String,System.String,System.String)">
-            <summary>
-            根据用户问题和Schema信息生成SQL查询（兼容旧版本）
-            </summary>
-            <param name="dbType">数据库类型</param>
-            <param name="userMessage">用户问题</param>
-            <param name="schemaInfo">Schema信息</param>
             <returns>生成的SQL查询</returns>
         </member>
         <member name="M:Text2Sql.Net.Domain.Service.ChatService.OptimizeSqlQueryAsync(System.String,System.String,System.String,System.String)">
