@@ -341,3 +341,8 @@ ASALocalRun/
 /src/Text2Sql.Net.Web/appsettings.Development.json
 /.vscode
 /demo
+/src/Text2Sql.Net.Web/Layouts/BasicLayout.razor
+/src/Text2Sql.Net.Web/Layouts/UserLayout.razor
+/src/Text2Sql.Net.Web/Pages/Index.razor
+/src/Text2Sql.Net.Web/wwwroot/data/menu.json
+/src/Text2Sql.Net.Web/Program.cs
